@@ -1,7 +1,7 @@
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const colors = require('colors');
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import 'colors';
 
 dotenv.config();
 
@@ -11,8 +11,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.get('/api', (req, res) => {
-  res.status(200).json({ message: 'Welcome to the Backend API' });
+app.get('/api', (req: Request, res: Response) => {
+  res.status(200).json({ message: 'Welcome to the Backend API (TypeScript)' });
 });
 
 const PORT = process.env.PORT || 5000;
