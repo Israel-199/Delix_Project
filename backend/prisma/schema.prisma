@@ -1,0 +1,111 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CUSTOMER
+  DRIVER
+  ADMIN
+}
+
+enum DriverStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+  OFFLINE
+}
+
+enum VehicleType {
+  LADA_BED
+  PICKUP_TRUCK
+  MINI_TRUCK
+  LARGE_TRUCK
+}
+
+enum OrderStatus {
+  SEARCHING_DRIVER
+  DRIVER_ACCEPTED
+  ARRIVED_PICKUP
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+enum CargoCategory {
+  FURNITURE
+  CONSTRUCTION_MATERIALS
+  SHOP_GOODS
+  DOCUMENTS
+  OTHER
+}
+
+model User {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  name      String
+  role      Role     @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  driverProfile Driver?
+  customerOrders Order[]  @relation("CustomerOrders")
+}
+
+model Driver {
+  id                String       @id @default(uuid())
+  userId            String       @unique
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber     String       @unique
+  vehicleType       VehicleType
+  plateNumber       String       @unique
+  photoUrl          String?
+  status            DriverStatus @default(PENDING_APPROVAL)
+  completedTrips    Int          @default(0)
+  commissionBalance Float        @default(0.0)
+  currentLat        Float?
+  currentLng        Float?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  assignedOrders    Order[]      @relation("DriverOrders")
+}
+
+model Order {
+  id                  String        @id @default(uuid())
+  customerId          String
+  customer            User          @relation("CustomerOrders", fields: [customerId], references: [id])
+  driverId            String?
+  driver              Driver?       @relation("DriverOrders", fields: [driverId], references: [id])
+  cargoCategory       CargoCategory
+  cargoDescription    String?
+  cargoPhotoUrl       String?
+  vehicleRequested    VehicleType
+  pickupAddress       String
+  pickupLat           Float
+  pickupLng           Float
+  destinationAddress  String
+  destinationLat      Float
+  destinationLng      Float
+  loadingAssistance   Boolean       @default(false)
+  unloadingAssistance Boolean       @default(false)
+  distanceKm          Float
+  estimatedPrice      Float
+  status              OrderStatus   @default(SEARCHING_DRIVER)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+model PricingMatrix {
+  id           String      @id @default(uuid())
+  vehicleType  VehicleType @unique
+  baseFare     Float
+  perKmRate    Float
+  loadingFee   Float
+  unloadingFee Float
+  updatedAt    DateTime    @updatedAt
+}
