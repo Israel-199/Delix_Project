@@ -15,6 +15,9 @@ import {
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import io from 'socket.io-client';
+import MapboxGL from '@rnmapbox/maps';
+
+MapboxGL.setAccessToken('pk.eyJ1IjoiZGVsaXhlbmdpbmVlciIsImEiOiJjbXh6ZGZ1Z20yMzVvMmtvMWx6YjRxcjFxIn0.dummy');
 
 const { width, height } = Dimensions.get('window');
 
@@ -97,26 +100,34 @@ const CustomerHomeScreen = () => {
       <StatusBar barStyle="dark-content" />
 
       {/* Main Map Background (Simulated for MVP without actual API key) */}
+      {/* Main Mapbox Vector Layer Background */}
       {(appState === 'map_view' || appState === 'searching' || appState === 'driver_found') && (
         <View style={styles.mapBackground}>
-          {/* Simulated Map Texture representing Mapbox vector load */}
-          <View style={styles.mapGridLineOverlay}></View>
-          
-          <View style={styles.mapPin}>
-            <Text style={{fontSize: 24}}>📍</Text>
-            <View style={styles.etaBadge}><Text style={styles.etaText}>3 min</Text></View>
-          </View>
-          
-          <View style={[styles.mapPin, { top: height * 0.4, left: width * 0.7 }]}>
-            <Text style={{fontSize: 24}}>🏁</Text>
-            <View style={styles.etaBadge}><Text style={styles.etaText}>Arrive 10:34 AM</Text></View>
-          </View>
+          <MapboxGL.MapView style={{flex: 1}} styleURL={MapboxGL.StyleURL.Street}>
+            <MapboxGL.Camera
+              zoomLevel={13}
+              centerCoordinate={[38.7469, 9.0205]}
+              animationMode={'flyTo'}
+              animationDuration={2000}
+            />
+            {/* Interactive Pickup Pin Layer */}
+            <MapboxGL.PointAnnotation id="pickupPin" coordinate={[38.7469, 9.0205]}>
+              <View style={styles.mapPin}>
+                <Text style={{fontSize: 24}}>📍</Text>
+                <View style={styles.etaBadge}><Text style={styles.etaText}>3 min</Text></View>
+              </View>
+            </MapboxGL.PointAnnotation>
+            
+            {/* Interactive Destination Pin Layer */}
+            <MapboxGL.PointAnnotation id="destPin" coordinate={[38.7669, 9.0305]}>
+              <View style={styles.mapPin}>
+                <Text style={{fontSize: 24}}>🏁</Text>
+                <View style={styles.etaBadge}><Text style={styles.etaText}>Arrive 10:34 AM</Text></View>
+              </View>
+            </MapboxGL.PointAnnotation>
+          </MapboxGL.MapView>
 
-          {/* Dummy Route Line */}
-          <View style={styles.routeLine}></View>
-          <View style={styles.routeLineActive}></View>
-
-          {/* Back Button */}
+          {/* Back Button Overlay */}
           <TouchableOpacity style={styles.backMapBtn} onPress={() => setAppState('idle')}>
             <Text style={{fontSize: 20, fontWeight:'900'}}>←</Text>
           </TouchableOpacity>

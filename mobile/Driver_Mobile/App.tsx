@@ -15,6 +15,9 @@ import {
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import io from 'socket.io-client';
+import MapboxGL from '@rnmapbox/maps';
+
+MapboxGL.setAccessToken('pk.eyJ1IjoiZGVsaXhlbmdpbmVlciIsImEiOiJjbXh6ZGZ1Z20yMzVvMmtvMWx6YjRxcjFxIn0.dummy');
 
 const { width, height } = Dimensions.get('window');
 
@@ -83,23 +86,28 @@ const DriverHomeScreen = () => {
         </View>
       </View>
 
-      {/* Map View Rendering when Active */}
+      {/* Mapbox Native UI Rendering when Active */}
       {(activeStep === 'accepted' || activeStep === 'in_transit') && (
         <View style={styles.mapBackground}>
-          <View style={styles.mapGridLineOverlay}></View>
-          
-          {/* Simulated Moving Driver Pin */}
-          <View style={[styles.mapDriverPin, activeStep === 'in_transit' ? { top: height * 0.3 } : { top: height * 0.5 }]}>
-            <View style={styles.movingCar}><Text style={{fontSize:24}}>🚚</Text></View>
-          </View>
-          
-          {/* Customer Pickup / Dropoff Pin */}
-          <View style={[styles.mapPin, { top: height * 0.25, left: width * 0.4 }]}>
-            <Text style={{fontSize: 24}}>{activeStep === 'in_transit' ? '🏁' : '📍'}</Text>
-          </View>
-
-          {/* Dummy Route Line */}
-          <View style={styles.routeLine}></View>
+          <MapboxGL.MapView style={{flex: 1}} styleURL={MapboxGL.StyleURL.Street}>
+            <MapboxGL.Camera
+              zoomLevel={14}
+              centerCoordinate={[38.7469, 9.0205]}
+              animationMode={'flyTo'}
+              animationDuration={2000}
+            />
+            {/* Dynamic Driver Pin Layer */}
+            <MapboxGL.PointAnnotation id="driverPin" coordinate={[38.7469, 9.0205]}>
+              <View style={styles.movingCar}><Text style={{fontSize:24}}>🚚</Text></View>
+            </MapboxGL.PointAnnotation>
+            
+            {/* Customer Pickup / Dropoff Pin */}
+            <MapboxGL.PointAnnotation id="customerLocation" coordinate={[38.7569, 9.0305]}>
+              <View style={styles.mapPin}>
+                <Text style={{fontSize: 24}}>{activeStep === 'in_transit' ? '🏁' : '📍'}</Text>
+              </View>
+            </MapboxGL.PointAnnotation>
+          </MapboxGL.MapView>
         </View>
       )}
 
