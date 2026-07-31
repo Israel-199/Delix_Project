@@ -15,9 +15,7 @@ import {
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import io from 'socket.io-client';
-import MapboxGL from '@rnmapbox/maps';
-
-MapboxGL.setAccessToken('pk.eyJ1IjoiZGVsaXhlbmdpbmVlciIsImEiOiJjbXh6ZGZ1Z20yMzVvMmtvMWx6YjRxcjFxIn0.dummy');
+import MapView, { Marker } from 'react-native-maps';
 
 const { width, height } = Dimensions.get('window');
 
@@ -89,25 +87,27 @@ const DriverHomeScreen = () => {
       {/* Mapbox Native UI Rendering when Active */}
       {(activeStep === 'accepted' || activeStep === 'in_transit') && (
         <View style={styles.mapBackground}>
-          <MapboxGL.MapView style={{flex: 1}} styleURL={MapboxGL.StyleURL.Street}>
-            <MapboxGL.Camera
-              zoomLevel={14}
-              centerCoordinate={[38.7469, 9.0205]}
-              animationMode={'flyTo'}
-              animationDuration={2000}
-            />
+          <MapView 
+            style={{flex: 1}}
+            initialRegion={{
+              latitude: 9.0205,
+              longitude: 38.7469,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            }}
+          >
             {/* Dynamic Driver Pin Layer */}
-            <MapboxGL.PointAnnotation id="driverPin" coordinate={[38.7469, 9.0205]}>
+            <Marker coordinate={{ latitude: 9.0205, longitude: 38.7469 }}>
               <View style={styles.movingCar}><Text style={{fontSize:24}}>🚚</Text></View>
-            </MapboxGL.PointAnnotation>
+            </Marker>
             
             {/* Customer Pickup / Dropoff Pin */}
-            <MapboxGL.PointAnnotation id="customerLocation" coordinate={[38.7569, 9.0305]}>
+            <Marker coordinate={{ latitude: 9.0305, longitude: 38.7569 }}>
               <View style={styles.mapPin}>
                 <Text style={{fontSize: 24}}>{activeStep === 'in_transit' ? '🏁' : '📍'}</Text>
               </View>
-            </MapboxGL.PointAnnotation>
-          </MapboxGL.MapView>
+            </Marker>
+          </MapView>
         </View>
       )}
 
