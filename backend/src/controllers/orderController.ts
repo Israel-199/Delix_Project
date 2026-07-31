@@ -1,11 +1,41 @@
 import { Request, Response } from 'express';
 
-// Vehicle pricing rates (ETB)
-const vehicleRates: Record<string, { base: number; perKm: number; loading: number; unloading: number }> = {
-  LADA_BED: { base: 150, perKm: 25, loading: 50, unloading: 50 },
-  PICKUP_TRUCK: { base: 250, perKm: 35, loading: 100, unloading: 100 },
-  MINI_TRUCK: { base: 450, perKm: 50, loading: 200, unloading: 200 },
-  LARGE_TRUCK: { base: 1200, perKm: 110, loading: 500, unloading: 500 },
+// Strict 150 ETB per kilometer standard logic as requested
+const BASE_RATE_PER_KM_ETB = 150;
+const ETB_TO_DJF_RATE = 3.15; // Approximate conversion rate
+
+// Vehicle Add-on Fees (Assuming fixed for now)
+const vehicleRates: Record<string, { base: number; loading: number; unloading: number }> = {
+  LADA_BED: { base: 150, loading: 50, unloading: 50 },
+  PICKUP_TRUCK: { base: 250, loading: 100, unloading: 100 },
+  MINI_TRUCK: { base: 450, loading: 200, unloading: 200 },
+  LARGE_TRUCK: { base: 1200, loading: 500, unloading: 500 },
+};
+
+/**
+ * Helper to Calculate Price based on user location (Djibouti or Ethiopia)
+ */
+const calculatePrice = (vehicleType: string, distanceKm: number, pickupAddress: string, hasLoading: boolean, hasUnloading: boolean) => {
+  const rates = vehicleRates[vehicleType] || vehicleRates.PICKUP_TRUCK;
+  const isDjibouti = pickupAddress.toLowerCase().includes('djibouti');
+  
+  // Total in ETB
+  let totalEtb = rates.base + ((distanceKm || 5) * BASE_RATE_PER_KM_ETB);
+  if (hasLoading) totalEtb += rates.loading;
+  if (hasUnloading) totalEtb += rates.unloading;
+
+  // Conversion logic
+  if (isDjibouti) {
+    return {
+      priceAmount: Math.round(totalEtb * ETB_TO_DJF_RATE),
+      currency: 'DJF',
+    };
+  }
+
+  return {
+    priceAmount: Math.round(totalEtb),
+    currency: 'ETB',
+  };
 };
 
 /**
@@ -13,27 +43,16 @@ const vehicleRates: Record<string, { base: number; perKm: number; loading: numbe
  */
 export const estimateOrderPrice = async (req: Request, res: Response) => {
   try {
-    const { vehicleType, distanceKm, loadingAssistance = false, unloadingAssistance = false } = req.body;
+    const { vehicleType, distanceKm, pickupAddress = 'Addis Ababa', loadingAssistance = false, unloadingAssistance = false } = req.body;
 
-    const rates = vehicleRates[vehicleType] || vehicleRates.PICKUP_TRUCK;
-    const distanceCost = (distanceKm || 5) * rates.perKm;
-    let totalPrice = rates.base + distanceCost;
-
-    if (loadingAssistance) totalPrice += rates.loading;
-    if (unloadingAssistance) totalPrice += rates.unloading;
+    const { priceAmount, currency } = calculatePrice(vehicleType, distanceKm, pickupAddress, loadingAssistance, unloadingAssistance);
 
     res.status(200).json({
       success: true,
       vehicleType,
       distanceKm: distanceKm || 5,
-      estimatedPrice: Math.round(totalPrice),
-      currency: 'ETB',
-      breakdown: {
-        baseFare: rates.base,
-        distanceFare: distanceCost,
-        loadingFee: loadingAssistance ? rates.loading : 0,
-        unloadingFee: unloadingAssistance ? rates.unloading : 0,
-      }
+      estimatedPrice: priceAmount,
+      currency,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Pricing calculation failed' });
@@ -58,12 +77,16 @@ export const createOrder = async (req: Request, res: Response) => {
       distanceKm,
       loadingAssistance,
       unloadingAssistance,
+      paymentMethod // NEW: CBE, Cash, Telebirr
     } = req.body;
 
-    const rates = vehicleRates[vehicleRequested] || vehicleRates.PICKUP_TRUCK;
-    let totalPrice = rates.base + ((distanceKm || 5) * rates.perKm);
-    if (loadingAssistance) totalPrice += rates.loading;
-    if (unloadingAssistance) totalPrice += rates.unloading;
+    const { priceAmount, currency } = calculatePrice(
+      vehicleRequested || 'PICKUP_TRUCK', 
+      distanceKm, 
+      pickupAddress || 'Addis Ababa', 
+      loadingAssistance, 
+      unloadingAssistance
+    );
 
     const newOrder = {
       id: `DLX-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -76,11 +99,16 @@ export const createOrder = async (req: Request, res: Response) => {
       destinationAddress,
       destinationLat,
       destinationLng,
-      estimatedPrice: Math.round(totalPrice),
+      estimatedPrice: priceAmount,
+      currency,
+      paymentMethod: paymentMethod || 'Cash',
       status: 'SEARCHING_DRIVER',
       createdAt: new Date().toISOString()
     };
 
+    // In a real production system with PostGIS, we would use:
+    // UPDATE driver SET status='PINGED' WHERE ST_DWithin(location, pickup, 5000)
+    
     res.status(201).json({
       success: true,
       message: 'Order created successfully. Searching for nearby drivers...',
