@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   searchingIcon: { fontSize: 48, marginBottom: 10 },
   searchingTitle: { fontSize: 18, fontWeight: '800' },
   searchingSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 6 },
-
+  
   // Incoming Call Overlay
   incomingModal: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1F2937', zIndex: 20, padding: 30, justifyContent: 'center' },
   pulseRing: { alignItems: 'center', marginBottom: 40 },
