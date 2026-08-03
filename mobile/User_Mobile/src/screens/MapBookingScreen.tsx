@@ -14,7 +14,7 @@ import { DEFAULT_PICKUP_COORD } from '../constants/locationCoords';
 import { colors, radius, spacing } from '../design-system';
 import { fontSize, fontWeight } from '../design-system/typography';
 import { RootStackParamList } from '../navigation/types';
-import { geocodeAddress } from '../services/geocodingService';
+import { resolveDestination, reverseGeocode } from '../services/geocodingService';
 import { requestUserLocation } from '../services/locationService';
 import { fetchDrivingRoute } from '../services/routingService';
 import { useBookingStore } from '../store/bookingStore';
@@ -41,12 +41,6 @@ const buildNearbyDrivers = (
     vehicleCategory: 'pickup',
     etaMinutes: 3,
   },
-  {
-    id: 'driver-mini-1',
-    coordinate: { latitude: center.latitude + 0.001, longitude: center.longitude - 0.003 },
-    vehicleCategory: 'mini_truck',
-    etaMinutes: 5,
-  },
 ];
 
 const MapBookingScreen = ({ navigation }: Props) => {
@@ -56,8 +50,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
     vehicleCategoryId,
     serviceModelId,
     travelEta,
-    arrivalLabel,
-    pickupCoordinate,
+    arrivalTime,
     destinationCoordinate,
     userCoordinate,
     routeCoordinates,
@@ -65,6 +58,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
     setVehicleCategory,
     setServiceModel,
     setRouteGeometry,
+    setPickupLabel,
     fetchEstimatesForModels,
     estimateError,
   } = useBookingStore();
@@ -77,43 +71,54 @@ const MapBookingScreen = ({ navigation }: Props) => {
   const [priceMap, setPriceMap] = useState<Record<string, { price: number; currency: string }>>({});
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [routeFollowsRoads, setRouteFollowsRoads] = useState(true);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadRoute = async () => {
       setMapReady(false);
+      setMapError(null);
 
-      const [pickupPoint, destPoint, userPoint] = await Promise.all([
-        geocodeAddress(pickupLocation),
-        geocodeAddress(destination),
-        requestUserLocation(),
-      ]);
+      const userPoint = await requestUserLocation();
+
+      const destPoint = await resolveDestination(destination, destinationCoordinate);
 
       if (cancelled) return;
 
-      const pickup = pickupPoint ?? DEFAULT_PICKUP_COORD;
-      const dest = destPoint ?? {
-        latitude: pickup.latitude + 0.012,
-        longitude: pickup.longitude + 0.018,
-        address: destination,
-      };
-      const user = userPoint ?? pickup;
+      if (!destPoint) {
+        setMapError('Could not find destination on map. Try a nearby place name.');
+        setMapReady(true);
+        return;
+      }
 
-      const route = await fetchDrivingRoute(pickup, dest);
+      const origin = userPoint ?? DEFAULT_PICKUP_COORD;
+
+      if (userPoint) {
+        const addressLabel = await reverseGeocode(userPoint.latitude, userPoint.longitude);
+        if (!cancelled && addressLabel) {
+          setPickupLabel(addressLabel);
+        }
+      } else {
+        setPickupLabel('Your location (enable GPS for accuracy)');
+      }
+
+      const route = await fetchDrivingRoute(origin, destPoint);
       if (cancelled) return;
 
-      const drivers = buildNearbyDrivers(pickup);
+      setRouteFollowsRoads(route.followsRoads);
 
       setRouteGeometry({
-        pickupCoordinate: pickup,
-        destinationCoordinate: dest,
-        userCoordinate: user,
+        pickupCoordinate: origin,
+        destinationCoordinate: destPoint,
+        userCoordinate: origin,
         routeCoordinates: route.coordinates,
         distanceKm: route.distanceKm,
         travelEta: route.durationLabel,
         arrivalLabel: route.arrivalLabel,
-        nearbyDrivers: drivers,
+        arrivalTime: route.arrivalTime,
+        nearbyDrivers: buildNearbyDrivers(origin),
       });
 
       setMapReady(true);
@@ -121,7 +126,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
 
     loadRoute();
     return () => { cancelled = true; };
-  }, [pickupLocation, destination, setRouteGeometry]);
+  }, [destination, destinationCoordinate, setRouteGeometry, setPickupLabel]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,12 +141,12 @@ const MapBookingScreen = ({ navigation }: Props) => {
       }
     };
 
-    if (mapReady && serviceModels.length > 0) {
+    if (mapReady && serviceModels.length > 0 && !mapError) {
       loadPrices();
     }
 
     return () => { cancelled = true; };
-  }, [vehicleCategoryId, mapReady, fetchEstimatesForModels, serviceModels]);
+  }, [vehicleCategoryId, mapReady, mapError, fetchEstimatesForModels, serviceModels]);
 
   const mapMarkers: MapMarkerData[] = useMemo(() => {
     const markers: MapMarkerData[] = [];
@@ -151,16 +156,6 @@ const MapBookingScreen = ({ navigation }: Props) => {
         id: 'user',
         coordinate: userCoordinate,
         type: 'user',
-        label: 'You',
-      });
-    }
-
-    if (pickupCoordinate) {
-      markers.push({
-        id: 'pickup',
-        coordinate: pickupCoordinate,
-        type: 'pickup',
-        label: 'Pickup',
       });
     }
 
@@ -169,7 +164,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
         id: 'dest',
         coordinate: destinationCoordinate,
         type: 'destination',
-        label: arrivalLabel || travelEta,
+        label: arrivalTime || travelEta,
       });
     }
 
@@ -179,19 +174,11 @@ const MapBookingScreen = ({ navigation }: Props) => {
         coordinate: driver.coordinate,
         type: 'driver',
         vehicleCategory: driver.vehicleCategory,
-        label: driver.etaMinutes ? `${driver.etaMinutes} min` : undefined,
       });
     });
 
     return markers;
-  }, [
-    userCoordinate,
-    pickupCoordinate,
-    destinationCoordinate,
-    nearbyDrivers,
-    arrivalLabel,
-    travelEta,
-  ]);
+  }, [userCoordinate, destinationCoordinate, nearbyDrivers, arrivalTime, travelEta]);
 
   const vehicleIcon = useCallback((categoryId: VehicleCategoryId) => {
     const cat = VEHICLE_CATEGORIES.find((c) => c.id === categoryId);
@@ -209,14 +196,16 @@ const MapBookingScreen = ({ navigation }: Props) => {
         <MapContainer
           markers={mapMarkers}
           routeCoordinates={routeCoordinates}
+          routeFollowsRoads={routeFollowsRoads}
           showBackButton
           onBackPress={() => navigation.goBack()}
           mapPaddingBottom={SHEET_HEIGHT}
-          fitToRoute={mapReady}
+          fitToRoute={mapReady && mapMarkers.length >= 2}
         />
         {!mapReady && (
           <View style={styles.mapLoader}>
             <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Finding your route…</Text>
           </View>
         )}
       </View>
@@ -226,7 +215,10 @@ const MapBookingScreen = ({ navigation }: Props) => {
           pickup={pickupLocation}
           destination={destination}
           travelEta={travelEta}
+          arrivalTime={arrivalTime}
         />
+
+        {mapError ? <Text style={styles.error}>{mapError}</Text> : null}
 
         <ScrollView
           horizontal
@@ -286,7 +278,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
 
         <DelixButton
           title={serviceModelId ? 'Continue' : 'Select service class'}
-          disabled={!serviceModelId}
+          disabled={!serviceModelId || !!mapError}
           onPress={handleContinue}
         />
       </InlineBottomSheet>
@@ -307,6 +299,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.35)',
+    gap: spacing.sm,
+  },
+  loadingText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
   },
   sheet: { paddingTop: spacing.xs },
   categoryTabs: { marginBottom: spacing.md, flexGrow: 0 },

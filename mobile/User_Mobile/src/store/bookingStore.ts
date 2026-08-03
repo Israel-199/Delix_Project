@@ -24,6 +24,7 @@ interface BookingState {
   distanceKm: number;
   travelEta: string;
   arrivalLabel: string;
+  arrivalTime: string;
   paymentMethod: PaymentMethodId;
   cargoCategory: CargoCategoryId | null;
   cargoDescription: string;
@@ -37,7 +38,12 @@ interface BookingState {
   estimateError: string | null;
   bookingStatus: 'idle' | 'searching' | 'driver_assigned' | 'in_transit' | 'completed';
 
-  setRoute: (pickup: string, destination: string) => void;
+  setRoute: (
+    pickup: string,
+    destination: string,
+    options?: { destinationCoordinate?: LocationPoint | null }
+  ) => void;
+  setPickupLabel: (pickup: string) => void;
   setRouteGeometry: (payload: {
     pickupCoordinate: LocationPoint | null;
     destinationCoordinate: LocationPoint | null;
@@ -46,6 +52,7 @@ interface BookingState {
     distanceKm: number;
     travelEta: string;
     arrivalLabel: string;
+    arrivalTime?: string;
     nearbyDrivers?: NearbyDriver[];
   }) => void;
   setVehicleCategory: (id: VehicleCategoryId) => void;
@@ -79,6 +86,7 @@ const initialState = {
   distanceKm: 5.2,
   travelEta: '14 min',
   arrivalLabel: '',
+  arrivalTime: '',
   paymentMethod: 'cash' as PaymentMethodId,
   cargoCategory: null as CargoCategoryId | null,
   cargoDescription: '',
@@ -96,7 +104,7 @@ const initialState = {
 export const useBookingStore = create<BookingState>((set, get) => ({
   ...initialState,
 
-  setRoute: (pickup, destination) =>
+  setRoute: (pickup, destination, options) =>
     set({
       pickupLocation: pickup,
       destination,
@@ -104,8 +112,12 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       estimateError: null,
       routeCoordinates: [],
       pickupCoordinate: null,
-      destinationCoordinate: null,
+      destinationCoordinate: options?.destinationCoordinate ?? null,
+      arrivalLabel: '',
+      arrivalTime: '',
     }),
+
+  setPickupLabel: (pickup) => set({ pickupLocation: pickup }),
 
   setRouteGeometry: (payload) => set(payload),
 

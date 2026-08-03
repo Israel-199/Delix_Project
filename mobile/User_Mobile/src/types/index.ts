@@ -60,6 +60,7 @@ export interface LocationPoint {
   longitude: number;
   address?: string;
   label?: string;
+  accuracy?: number;
 }
 
 export interface MapRegion {

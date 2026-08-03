@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useRef } from 'react';
+import React, { ReactNode, useEffect, useMemo, useRef } from 'react';
 import {
   Pressable,
   StyleProp,
@@ -19,14 +19,13 @@ export interface MapContainerProps extends Omit<MapViewProps, 'style'> {
   style?: StyleProp<ViewStyle>;
   markers?: MapMarkerData[];
   routeCoordinates?: Array<{ latitude: number; longitude: number }>;
+  routeFollowsRoads?: boolean;
   showBackButton?: boolean;
   onBackPress?: () => void;
   backButtonOverlay?: ReactNode;
   rightOverlay?: ReactNode;
   initialRegion?: Region;
-  /** When true, map zooms to fit route + markers. */
   fitToRoute?: boolean;
-  /** Bottom padding so markers aren't hidden under the sheet (px). */
   mapPaddingBottom?: number;
 }
 
@@ -34,6 +33,7 @@ export const MapContainer = ({
   style,
   markers = [],
   routeCoordinates,
+  routeFollowsRoads = true,
   showBackButton = false,
   onBackPress,
   backButtonOverlay,
@@ -46,30 +46,38 @@ export const MapContainer = ({
 }: MapContainerProps) => {
   const mapRef = useRef<MapView>(null);
 
+  const fitCoords = useMemo(() => {
+    const points = markers
+      .filter((m) => m.type === 'user' || m.type === 'destination')
+      .map((m) => m.coordinate);
+
+    if (routeCoordinates?.length) {
+      points.push(
+        routeCoordinates[0],
+        routeCoordinates[routeCoordinates.length - 1]
+      );
+    }
+
+    return points;
+  }, [markers, routeCoordinates]);
+
   useEffect(() => {
-    if (!fitToRoute || !mapRef.current) return;
-
-    const coords = [
-      ...markers.map((m) => m.coordinate),
-      ...(routeCoordinates ?? []),
-    ];
-
-    if (coords.length < 2) return;
+    if (!fitToRoute || !mapRef.current || fitCoords.length < 2) return;
 
     const timer = setTimeout(() => {
-      mapRef.current?.fitToCoordinates(coords, {
+      mapRef.current?.fitToCoordinates(fitCoords, {
         edgePadding: {
           top: heightScale(80),
-          right: widthScale(40),
-          bottom: mapPaddingBottom + heightScale(40),
-          left: widthScale(40),
+          right: widthScale(48),
+          bottom: mapPaddingBottom + heightScale(48),
+          left: widthScale(48),
         },
         animated: true,
       });
-    }, 350);
+    }, 400);
 
     return () => clearTimeout(timer);
-  }, [markers, routeCoordinates, fitToRoute, mapPaddingBottom]);
+  }, [fitCoords, fitToRoute, mapPaddingBottom]);
 
   return (
     <View style={[styles.container, style]}>
@@ -84,7 +92,7 @@ export const MapContainer = ({
         {routeCoordinates && routeCoordinates.length > 1 && (
           <Polyline
             coordinates={routeCoordinates}
-            strokeColor={colors.success}
+            strokeColor={routeFollowsRoads ? colors.success : colors.warning}
             strokeWidth={5}
             lineCap="round"
             lineJoin="round"
@@ -124,8 +132,9 @@ export const MapContainer = ({
 };
 
 const typeAnchorY = (type?: MapMarkerData['type']) => {
-  if (type === 'user' || type === 'driver') return 0.5;
-  if (type === 'destination') return 0.85;
+  if (type === 'user') return 0.5;
+  if (type === 'destination') return 1;
+  if (type === 'driver') return 0.5;
   return 0.9;
 };
 

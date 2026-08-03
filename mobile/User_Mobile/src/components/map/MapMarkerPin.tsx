@@ -22,14 +22,10 @@ export const MapMarkerPin = ({ marker }: MapMarkerPinProps) => {
   if (type === 'user') {
     return (
       <View style={styles.userWrap}>
+        <View style={styles.userPulse} />
         <View style={styles.userDot}>
-          <Text style={styles.userIcon}>🧍</Text>
+          <View style={styles.userDotInner} />
         </View>
-        {marker.label ? (
-          <View style={styles.userBadge}>
-            <Text style={styles.badgeText}>{marker.label}</Text>
-          </View>
-        ) : null}
       </View>
     );
   }
@@ -48,14 +44,14 @@ export const MapMarkerPin = ({ marker }: MapMarkerPinProps) => {
   if (type === 'destination') {
     return (
       <View style={styles.destWrap}>
-        <View style={styles.destPin}>
-          <Text style={styles.destIcon}>🏁</Text>
-        </View>
         {marker.label ? (
-          <View style={styles.destBadge}>
-            <Text style={styles.badgeText}>{marker.label}</Text>
+          <View style={styles.destTimeBadge}>
+            <Text style={styles.destTimeText}>{marker.label}</Text>
           </View>
         ) : null}
+        <View style={styles.destPin}>
+          <View style={styles.destPinInner} />
+        </View>
       </View>
     );
   }
@@ -75,25 +71,30 @@ export const MapMarkerPin = ({ marker }: MapMarkerPinProps) => {
 };
 
 const styles = StyleSheet.create({
-  userWrap: { alignItems: 'center' },
-  userDot: {
-    width: moderateScale(36),
-    height: moderateScale(36),
+  userWrap: { alignItems: 'center', justifyContent: 'center', width: moderateScale(44), height: moderateScale(44) },
+  userPulse: {
+    position: 'absolute',
+    width: moderateScale(44),
+    height: moderateScale(44),
     borderRadius: radius.full,
-    backgroundColor: colors.background,
-    borderWidth: 2,
-    borderColor: colors.info,
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  userDot: {
+    width: moderateScale(22),
+    height: moderateScale(22),
+    borderRadius: radius.full,
+    backgroundColor: colors.info,
+    borderWidth: 3,
+    borderColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     ...shadows.sm,
   },
-  userIcon: { fontSize: moderateScale(16) },
-  userBadge: {
-    marginTop: spacing.xxs,
-    backgroundColor: colors.info,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderRadius: radius.sm,
+  userDotInner: {
+    width: moderateScale(6),
+    height: moderateScale(6),
+    borderRadius: radius.full,
+    backgroundColor: colors.background,
   },
   driverWrap: { alignItems: 'center' },
   driverBubble: {
@@ -109,25 +110,35 @@ const styles = StyleSheet.create({
   },
   driverIcon: { fontSize: moderateScale(20) },
   destWrap: { alignItems: 'center' },
-  destPin: {
-    width: moderateScale(38),
-    height: moderateScale(38),
-    borderRadius: radius.full,
-    backgroundColor: colors.background,
-    borderWidth: 2,
-    borderColor: colors.success,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.sm,
-  },
-  destIcon: { fontSize: moderateScale(18) },
-  destBadge: {
-    marginTop: spacing.xxs,
+  destTimeBadge: {
     backgroundColor: colors.success,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xxs,
     borderRadius: radius.sm,
-    maxWidth: moderateScale(120),
+    marginBottom: spacing.xxs,
+    ...shadows.sm,
+  },
+  destTimeText: {
+    color: colors.textOnPrimary,
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.sm,
+  },
+  destPin: {
+    width: moderateScale(20),
+    height: moderateScale(20),
+    borderRadius: radius.full,
+    backgroundColor: colors.success,
+    borderWidth: 3,
+    borderColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  destPinInner: {
+    width: moderateScale(6),
+    height: moderateScale(6),
+    borderRadius: radius.full,
+    backgroundColor: colors.background,
   },
   pickupWrap: { alignItems: 'center' },
   pickupPin: {

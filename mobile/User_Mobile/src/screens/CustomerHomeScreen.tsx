@@ -14,6 +14,7 @@ import { colors, spacing } from '../design-system';
 import { textStyles, typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { useBookingStore } from '../store/bookingStore';
+import { RecentLocation } from '../constants/locations';
 import { VehicleCategoryId } from '../types';
 import { moderateScale } from '../utils/responsive';
 
@@ -26,9 +27,15 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [localPickup, setLocalPickup] = useState(pickupLocation);
 
-  const handleDestinationSelect = (dest: string) => {
-    setRoute(localPickup, dest);
-    setDestination(dest);
+  const handleDestinationSelect = (loc: RecentLocation) => {
+    setRoute(localPickup, loc.title, {
+      destinationCoordinate: {
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        address: loc.title,
+      },
+    });
+    setDestination(loc.title);
     setIsSearching(false);
     navigation.navigate('MapBooking');
   };
@@ -61,7 +68,7 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
             <Pressable
               key={item.id}
               style={styles.recentItem}
-              onPress={() => handleDestinationSelect(item.title)}
+              onPress={() => handleDestinationSelect(item)}
             >
               <Text style={styles.recentPin}>📍</Text>
               <View style={styles.recentBody}>

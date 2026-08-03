@@ -7,18 +7,31 @@ interface RouteSummaryRowProps {
   pickup: string;
   destination: string;
   travelEta?: string;
+  arrivalTime?: string;
 }
 
-export const RouteSummaryRow = ({ pickup, destination, travelEta }: RouteSummaryRowProps) => (
+export const RouteSummaryRow = ({
+  pickup,
+  destination,
+  travelEta,
+  arrivalTime,
+}: RouteSummaryRowProps) => (
   <View style={styles.container}>
     <View style={styles.row}>
-      <Text style={styles.pickupIcon}>👋</Text>
+      <View style={styles.dotPickup} />
       <Text style={styles.pickupText} numberOfLines={1}>{pickup}</Text>
     </View>
+    <View style={styles.connector} />
     <View style={styles.row}>
-      <Text style={styles.destIcon}>🏁</Text>
+      <View style={styles.dotDest} />
       <Text style={styles.destText} numberOfLines={1}>{destination}</Text>
-      {travelEta ? <Text style={styles.eta}>{travelEta}</Text> : null}
+      {arrivalTime ? (
+        <View style={styles.arrivalBadge}>
+          <Text style={styles.arrivalText}>{arrivalTime}</Text>
+        </View>
+      ) : travelEta ? (
+        <Text style={styles.eta}>{travelEta}</Text>
+      ) : null}
     </View>
   </View>
 );
@@ -29,25 +42,51 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
     paddingBottom: spacing.md,
     marginBottom: spacing.md,
-    gap: spacing.sm,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  pickupIcon: { fontSize: typography.body.fontSize },
+  dotPickup: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.info,
+  },
+  dotDest: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.success,
+  },
+  connector: {
+    width: 2,
+    height: 14,
+    backgroundColor: colors.border,
+    marginLeft: 4,
+    marginVertical: 2,
+  },
   pickupText: {
     flex: 1,
     ...typography.addressSubtitle,
   },
-  destIcon: { fontSize: typography.body.fontSize },
   destText: {
     flex: 1,
     ...typography.addressTitle,
   },
   eta: {
     ...typography.timeLabel,
+  },
+  arrivalBadge: {
+    backgroundColor: colors.successTint,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: 8,
+  },
+  arrivalText: {
+    ...typography.timeLabel,
+    color: colors.success,
   },
 });
 
