@@ -1,16 +1,17 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import CustomerHomeScreen from './src/screens/CustomerHomeScreen';
-
-const Stack = createNativeStackNavigator();
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import RootNavigator from './src/navigation/RootNavigator';
+import { ThemeProvider } from './src/providers/ThemeProvider';
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="CustomerHome" component={CustomerHomeScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
