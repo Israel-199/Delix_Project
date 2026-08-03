@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Image,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -9,7 +10,7 @@ import {
 } from 'react-native';
 import { colors, radius, shadows, spacing } from '../../design-system';
 import { fontSize, fontWeight } from '../../design-system/typography';
-import { heightScale, moderateScale, widthScale } from '../../utils/responsive';
+import { moderateScale, widthScale } from '../../utils/responsive';
 import { VehicleCardData } from '../../types';
 
 export interface VehicleCardProps {
@@ -27,8 +28,9 @@ export const VehicleCard = ({
   onPress,
   style,
 }: VehicleCardProps) => {
-  const { name, icon, eta, price, priceLabel, unavailable } = vehicle;
-  const displayPrice = priceLabel ?? (price != null ? `Br ~${price}` : '—');
+  const { name, icon, imageUri, unavailable } = vehicle;
+
+  const cardWidth = compact ? widthScale(84) : widthScale(102);
 
   return (
     <Pressable
@@ -37,97 +39,90 @@ export const VehicleCard = ({
       disabled={unavailable}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.card,
-        compact && styles.cardCompact,
-        selected && styles.cardSelected,
-        unavailable && styles.cardUnavailable,
-        pressed && !unavailable && styles.cardPressed,
+        styles.container,
+        { width: cardWidth },
+        unavailable && styles.containerUnavailable,
+        pressed && !unavailable && styles.containerPressed,
         style,
       ]}
     >
-      {icon ? (
-        <Text style={[styles.icon, compact && styles.iconCompact]}>{icon}</Text>
-      ) : (
-        <View style={styles.iconPlaceholder} />
-      )}
-
-      {eta ? <Text style={styles.eta}>{eta}</Text> : null}
+      <View
+        style={[
+          styles.squareBox,
+          compact && styles.squareBoxCompact,
+          selected && styles.squareBoxSelected,
+        ]}
+      >
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.image} resizeMode="contain" />
+        ) : icon ? (
+          <Text style={[styles.icon, compact && styles.iconCompact]}>{icon}</Text>
+        ) : (
+          <View style={styles.iconPlaceholder} />
+        )}
+      </View>
 
       <Text style={[styles.name, selected && styles.nameSelected]} numberOfLines={1}>
         {name}
-      </Text>
-
-      <Text style={[styles.price, unavailable && styles.priceUnavailable]} numberOfLines={1}>
-        {displayPrice}
       </Text>
     </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    width: widthScale(105),
-    minHeight: heightScale(95),
-    backgroundColor: colors.backgroundTertiary,
-    borderRadius: radius.lg,
-    padding: spacing.sm,
+  container: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
     marginRight: spacing.sm,
+  },
+  containerUnavailable: {
+    opacity: 0.45,
+  },
+  containerPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.95 }],
+  },
+  squareBox: {
+    width: '100%',
+    aspectRatio: 1,
+    backgroundColor: '#F2F3F7',
+    borderRadius: radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: colors.transparent,
   },
-  cardCompact: {
-    width: widthScale(90),
-    minHeight: heightScale(88),
+  squareBoxCompact: {
+    borderRadius: radius.lg,
   },
-  cardSelected: {
+  squareBoxSelected: {
     backgroundColor: colors.primaryTint,
     borderColor: colors.primary,
     ...shadows.sm,
   },
-  cardUnavailable: {
-    opacity: 0.45,
-  },
-  cardPressed: {
-    opacity: 0.9,
+  image: {
+    width: '80%',
+    height: '80%',
   },
   icon: {
-    fontSize: moderateScale(28),
-    marginBottom: spacing.xxs,
+    fontSize: moderateScale(36),
   },
   iconCompact: {
-    fontSize: moderateScale(24),
+    fontSize: moderateScale(28),
   },
   iconPlaceholder: {
-    width: moderateScale(28),
-    height: moderateScale(28),
-    marginBottom: spacing.xxs,
+    width: moderateScale(36),
+    height: moderateScale(36),
   },
-  eta: {
+  name: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-    marginBottom: spacing.xxs,
-  },
-  name: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
     textAlign: 'center',
+    marginTop: spacing.xs,
   },
   nameSelected: {
     color: colors.primaryDark,
-  },
-  price: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.textSecondary,
-    marginTop: spacing.xxs,
-    textAlign: 'center',
-  },
-  priceUnavailable: {
-    color: colors.textPlaceholder,
   },
 });
 

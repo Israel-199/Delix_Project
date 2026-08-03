@@ -1,6 +1,7 @@
 import { VehicleCategory, PaymentMethod } from '../types';
 
 export const VEHICLE_CATEGORIES: VehicleCategory[] = [
+  { id: 'lada', name: 'Lada', icon: '🚕', eta: '2 min', description: 'Taxi & small parcel transport' },
   { id: 'pickup', name: 'Pickup', icon: '🛻', eta: '3 min', description: 'Medium cargo & appliances' },
   { id: 'mini_truck', name: 'Mini truck', icon: '🚚', eta: '4 min', description: 'Heavy furniture & bulk goods' },
   { id: 'large_truck', name: 'Large truck', icon: '🚛', eta: '8 min', description: 'Industrial & warehouse cargo' },

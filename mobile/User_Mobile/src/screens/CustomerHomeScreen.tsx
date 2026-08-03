@@ -134,9 +134,9 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
   },
   menuIcon: { fontSize: moderateScale(24) },
-  vehicleScroll: { marginVertical: spacing.md },
-  vehicleScrollContent: { paddingHorizontal: spacing.lg },
-  searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  vehicleScroll: { marginTop: spacing.md, marginBottom: spacing.xl, flexGrow: 0 },
+  vehicleScrollContent: { paddingHorizontal: spacing.lg, alignItems: 'flex-start' },
+  searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
   searchScreen: { paddingHorizontal: spacing.lg },
   searchHeader: {
     flexDirection: 'row',
