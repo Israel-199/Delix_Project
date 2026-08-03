@@ -3,18 +3,20 @@ import { StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DelixButton, PhoneInput, ScreenContainer, validateEthiopianPhone } from '../components';
 import { colors, spacing } from '../design-system';
-import { fontSize, fontWeight, textStyles } from '../design-system/typography';
+import { textStyles, typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
+import { ApiError } from '../services/apiClient';
 import { useAuthStore } from '../store/authStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 const LoginScreen = ({ navigation }: Props) => {
-  const setPhone = useAuthStore((s) => s.setPhone);
+  const sendOtp = useAuthStore((s) => s.sendOtp);
   const [phone, setPhoneLocal] = useState('');
   const [error, setError] = useState<string | undefined>();
+  const [loading, setLoading] = useState(false);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!phone.trim()) {
       setError('Phone number is required');
       return;
@@ -23,9 +25,18 @@ const LoginScreen = ({ navigation }: Props) => {
       setError('Enter a valid Ethiopian phone number');
       return;
     }
+
+    setLoading(true);
     setError(undefined);
-    setPhone(phone);
-    navigation.navigate('OtpVerification', { phone });
+
+    try {
+      await sendOtp(phone);
+      navigation.navigate('OtpVerification', { phone });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not send OTP. Check your connection.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,7 +54,12 @@ const LoginScreen = ({ navigation }: Props) => {
           }}
           error={error}
         />
-        <DelixButton title="Continue" onPress={handleContinue} style={styles.button} />
+        <DelixButton
+          title="Continue"
+          loading={loading}
+          onPress={handleContinue}
+          style={styles.button}
+        />
       </View>
 
       <Text style={styles.footer}>
@@ -68,9 +84,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: fontSize.md,
+    ...typography.body,
     color: colors.textSecondary,
-    fontWeight: fontWeight.medium,
     marginBottom: spacing['2xl'],
   },
   form: {
@@ -81,10 +96,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     marginTop: spacing['3xl'],
-    fontSize: fontSize.sm,
+    ...typography.small,
     color: colors.textPlaceholder,
     textAlign: 'center',
-    lineHeight: 20,
   },
 });
 

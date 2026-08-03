@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import io from 'socket.io-client';
 import { DelixButton, ScreenContainer } from '../components';
 import { PaymentMethodPicker } from '../components/inputs/PaymentMethodPicker';
 import { VEHICLE_CATEGORIES } from '../constants';
 import { CARGO_CATEGORIES } from '../constants/cargo';
 import { findServiceModel } from '../constants/serviceModels';
-import { SOCKET_URL } from '../constants';
 import { colors, radius, spacing } from '../design-system';
 import { fontSize, fontWeight, textStyles } from '../design-system/typography';
 import { RootStackParamList } from '../navigation/types';
+import { ApiError } from '../services/apiClient';
+import { createOrder } from '../services/orderService';
+import { emitCargoDeliveryRequest } from '../services/socketService';
+import { useAuthStore } from '../store/authStore';
 import { useBookingStore } from '../store/bookingStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BookingSummary'>;
-
-const socket = io(SOCKET_URL);
 
 const SummaryRow = ({ label, value }: { label: string; value: string }) => (
   <View style={styles.row}>
@@ -26,6 +26,10 @@ const SummaryRow = ({ label, value }: { label: string; value: string }) => (
 
 const BookingSummaryScreen = ({ navigation }: Props) => {
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const phone = useAuthStore((s) => s.phone);
+
   const booking = useBookingStore();
   const {
     pickupLocation,
@@ -45,6 +49,7 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
     setPaymentMethod,
     setOrderId,
     setBookingStatus,
+    isEstimating,
   } = booking;
 
   const category = VEHICLE_CATEGORIES.find((v) => v.id === vehicleCategoryId);
@@ -53,31 +58,50 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
     : undefined;
   const cargo = CARGO_CATEGORIES.find((c) => c.id === cargoCategory);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (!cargoCategory) {
+      setError('Cargo category is missing');
+      return;
+    }
+
     setSubmitting(true);
-    setBookingStatus('searching');
+    setError(undefined);
 
-    const orderId = `ORD-${Date.now()}`;
-    setOrderId(orderId);
+    try {
+      const response = await createOrder(
+        {
+          customerId: phone || 'USR-MOBILE',
+          cargoCategory,
+          vehicleCategoryId,
+          serviceModelId,
+          pickupAddress: pickupLocation,
+          destinationAddress: destination,
+          distanceKm,
+          loadingAssistance,
+          unloadingAssistance,
+          paymentMethod,
+          cargoDescription,
+          specialInstructions,
+        },
+        accessToken
+      );
 
-    socket.emit('request_cargo_delivery', {
-      orderId,
-      customerId: 'USR-MOBILE',
-      cargoCategory: cargoCategory?.toUpperCase(),
-      vehicleRequested: vehicleCategoryId,
-      serviceModel: serviceModelId,
-      pickupAddress: pickupLocation,
-      destinationAddress: destination,
-      distanceKm,
-      paymentMethod,
-      cargoDescription,
-      specialInstructions,
-      loadingAssistance,
-      unloadingAssistance,
-    });
+      const orderId = response.order.id;
+      setOrderId(orderId);
+      setBookingStatus('searching');
 
-    navigation.replace('DriverTracking', { orderId });
-    setSubmitting(false);
+      emitCargoDeliveryRequest({
+        ...response.order,
+        orderId,
+        customerId: phone,
+      });
+
+      navigation.replace('DriverTracking', { orderId });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not create booking');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -109,15 +133,19 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
 
       <View style={styles.totalBox}>
         <Text style={styles.totalLabel}>Estimated total</Text>
-        <Text style={styles.totalAmount}>{currency} {estimatedPrice}</Text>
+        <Text style={styles.totalAmount}>
+          {isEstimating ? '...' : `${currency} ${estimatedPrice}`}
+        </Text>
       </View>
 
       <Text style={styles.paymentLabel}>Payment method</Text>
       <PaymentMethodPicker selected={paymentMethod} onSelect={setPaymentMethod} />
 
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <DelixButton
         title="Confirm Booking"
-        loading={submitting}
+        loading={submitting || isEstimating}
         onPress={handleConfirm}
         style={styles.button}
       />
@@ -167,6 +195,11 @@ const styles = StyleSheet.create({
   paymentLabel: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
+    marginBottom: spacing.sm,
+  },
+  error: {
+    color: colors.error,
+    fontSize: fontSize.sm,
     marginBottom: spacing.sm,
   },
   button: { marginTop: spacing.md, marginBottom: spacing['2xl'] },

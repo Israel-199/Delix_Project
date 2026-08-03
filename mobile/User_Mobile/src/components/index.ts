@@ -8,5 +8,7 @@ export { DelixInput, type DelixInputProps } from './inputs/DelixInput';
 export { SearchInput, HomeSearchBar, type SearchInputProps } from './inputs/SearchInput';
 export { PhoneInput, validateEthiopianPhone, formatEthiopianPhone, type PhoneInputProps } from './inputs/PhoneInput';
 export { ScreenContainer, type ScreenContainerProps } from './layout/ScreenContainer';
+export { AppDrawer } from './layout/AppDrawer';
 export { PromoBanner } from './cards/PromoBanner';
 export { PaymentMethodPicker } from './inputs/PaymentMethodPicker';
+export { AppText, type AppTextProps } from './text/AppText';

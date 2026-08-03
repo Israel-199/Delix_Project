@@ -21,7 +21,8 @@ export const DEFAULT_MAP_REGION = {
   longitudeDelta: 0.05,
 } as const;
 
-export const SOCKET_URL = 'http://10.0.2.2:5000';
+/** @deprecated Use API_BASE_URL / SOCKET_URL from src/config/api.ts */
+export { API_BASE_URL, SOCKET_URL } from '../config/api';
 
 export const BASE_RATE_ETB_PER_KM = 150;
 

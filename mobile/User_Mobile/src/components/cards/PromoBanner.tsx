@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '../../design-system';
-import { fontSize, fontWeight } from '../../design-system/typography';
+import { fontFamilies, typography } from '../../theme/typography';
 
 interface PromoBannerProps {
   badge?: string;
@@ -40,18 +40,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   badgeText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.black,
+    ...typography.small,
+    fontFamily: fontFamilies.extrabold,
     color: colors.primary,
   },
   title: {
+    ...typography.subtitle,
+    fontFamily: fontFamilies.extrabold,
     color: colors.textOnPrimary,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.black,
   },
   subtitle: {
+    ...typography.caption,
     color: colors.primarySubtle,
-    fontSize: fontSize.sm,
     marginTop: spacing.xxs,
   },
 });

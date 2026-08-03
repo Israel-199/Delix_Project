@@ -9,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { colors, radius, spacing } from '../../design-system';
-import { fontSize, fontWeight } from '../../design-system/typography';
+import { fontFamilies, typography } from '../../theme/typography';
 import { heightScale } from '../../utils/responsive';
 
 export interface DelixInputProps extends TextInputProps {
@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    ...typography.caption,
+    fontFamily: fontFamilies.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
@@ -101,9 +101,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
-    color: colors.textPrimary,
+    ...typography.bodyMedium,
     paddingVertical: spacing.sm,
   },
   leading: {
@@ -114,14 +112,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     marginTop: spacing.xs,
-    fontSize: fontSize.sm,
+    ...typography.small,
     color: colors.error,
-    fontWeight: fontWeight.medium,
   },
   hintText: {
     marginTop: spacing.xs,
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
+    ...typography.caption,
   },
 });
 

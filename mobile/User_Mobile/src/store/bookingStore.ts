@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { calculatePrice } from '../constants/serviceModels';
+import { estimateOrderPrice } from '../services/orderService';
+import { getAuthToken } from '../services/apiClient';
 import {
   PaymentMethodId,
   ServiceModelId,
@@ -23,6 +24,8 @@ interface BookingState {
   estimatedPrice: number;
   currency: string;
   orderId: string | null;
+  isEstimating: boolean;
+  estimateError: string | null;
   bookingStatus: 'idle' | 'searching' | 'driver_assigned' | 'in_transit' | 'completed';
 
   setRoute: (pickup: string, destination: string) => void;
@@ -33,7 +36,10 @@ interface BookingState {
     'cargoCategory' | 'cargoDescription' | 'specialInstructions' |
     'loadingAssistance' | 'unloadingAssistance'
   >>) => void;
-  recalculatePrice: () => void;
+  fetchEstimate: (serviceModelId?: ServiceModelId | null) => Promise<void>;
+  fetchEstimatesForModels: (
+    modelIds: ServiceModelId[]
+  ) => Promise<Record<string, { price: number; currency: string }>>;
   setOrderId: (id: string) => void;
   setBookingStatus: (status: BookingState['bookingStatus']) => void;
   reset: () => void;
@@ -57,6 +63,8 @@ const initialState = {
   estimatedPrice: 0,
   currency: 'Br',
   orderId: null as string | null,
+  isEstimating: false,
+  estimateError: null as string | null,
   bookingStatus: 'idle' as BookingState['bookingStatus'],
 };
 
@@ -64,26 +72,81 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   ...initialState,
 
   setRoute: (pickup, destination) =>
-    set({ pickupLocation: pickup, destination, serviceModelId: null }),
+    set({ pickupLocation: pickup, destination, serviceModelId: null, estimateError: null }),
 
   setVehicleCategory: (id) =>
-    set({ vehicleCategoryId: id, serviceModelId: null }),
+    set({ vehicleCategoryId: id, serviceModelId: null, estimateError: null }),
 
   setServiceModel: (id) => {
     set({ serviceModelId: id });
-    get().recalculatePrice();
+    get().fetchEstimate(id);
   },
 
   setPaymentMethod: (id) => set({ paymentMethod: id }),
 
-  setCargoInfo: (info) => set(info),
+  setCargoInfo: (info) => {
+    set(info);
+    const { serviceModelId } = get();
+    if (serviceModelId) {
+      get().fetchEstimate(serviceModelId);
+    }
+  },
 
-  recalculatePrice: () => {
-    const { distanceKm, serviceModelId, pickupLocation } = get();
-    if (!serviceModelId) return;
-    const isDjibouti = pickupLocation.toLowerCase().includes('djibouti');
-    const { price, currency } = calculatePrice(distanceKm, serviceModelId, isDjibouti);
-    set({ estimatedPrice: price, currency });
+  fetchEstimate: async (serviceModelId) => {
+    const state = get();
+    const modelId = serviceModelId ?? state.serviceModelId;
+    if (!modelId) return;
+
+    set({ isEstimating: true, estimateError: null });
+
+    try {
+      const { price, currency } = await estimateOrderPrice(
+        {
+          vehicleCategoryId: state.vehicleCategoryId,
+          distanceKm: state.distanceKm,
+          pickupAddress: state.pickupLocation,
+          loadingAssistance: state.loadingAssistance,
+          unloadingAssistance: state.unloadingAssistance,
+          serviceModelId: modelId,
+        },
+        getAuthToken()
+      );
+      set({ estimatedPrice: price, currency, isEstimating: false });
+    } catch (error) {
+      set({
+        isEstimating: false,
+        estimateError: error instanceof Error ? error.message : 'Failed to fetch price',
+      });
+    }
+  },
+
+  fetchEstimatesForModels: async (modelIds) => {
+    const state = get();
+    const token = getAuthToken();
+    const results: Record<string, { price: number; currency: string }> = {};
+
+    await Promise.all(
+      modelIds.map(async (modelId) => {
+        try {
+          const estimate = await estimateOrderPrice(
+            {
+              vehicleCategoryId: state.vehicleCategoryId,
+              distanceKm: state.distanceKm,
+              pickupAddress: state.pickupLocation,
+              loadingAssistance: state.loadingAssistance,
+              unloadingAssistance: state.unloadingAssistance,
+              serviceModelId: modelId,
+            },
+            token
+          );
+          results[modelId] = estimate;
+        } catch {
+          // Leave model without price — UI shows dash
+        }
+      })
+    );
+
+    return results;
   },
 
   setOrderId: (id) => set({ orderId: id }),

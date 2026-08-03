@@ -5,6 +5,7 @@ import { DelixButton, ScreenContainer } from '../components';
 import { colors, radius, spacing } from '../design-system';
 import { fontSize, fontWeight, textStyles } from '../design-system/typography';
 import { RootStackParamList } from '../navigation/types';
+import { ApiError } from '../services/apiClient';
 import { useAuthStore } from '../store/authStore';
 import { moderateScale } from '../utils/responsive';
 
@@ -13,11 +14,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'OtpVerification'>;
 const OTP_LENGTH = 6;
 
 const OtpVerificationScreen = ({ navigation, route }: Props) => {
-  const login = useAuthStore((s) => s.login);
+  const verifyAndLogin = useAuthStore((s) => s.verifyAndLogin);
+  const sendOtp = useAuthStore((s) => s.sendOtp);
   const { phone } = route.params;
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputs = useRef<Array<TextInput | null>>([]);
 
   const otpValue = digits.join('');
@@ -49,16 +52,31 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
       setError('Enter the 6-digit code');
       return;
     }
-    setLoading(true);
-    const success = login(phone, code);
-    setLoading(false);
 
-    if (success) {
+    setLoading(true);
+    setError(undefined);
+
+    try {
+      await verifyAndLogin(phone, code);
       navigation.replace('CustomerHome');
-    } else {
-      setError('Incorrect verification code');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Verification failed');
       setDigits(Array(OTP_LENGTH).fill(''));
       inputs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    setError(undefined);
+    try {
+      await sendOtp(phone);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not resend code');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -70,7 +88,6 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
 
       <Text style={styles.title}>Verify Your Number</Text>
       <Text style={styles.subtitle}>Code sent to +251 {phone.replace(/\s/g, '').replace(/^0/, '')}</Text>
-      <Text style={styles.devHint}>Dev OTP: 123456</Text>
 
       <View style={styles.otpRow}>
         {digits.map((digit, index) => (
@@ -97,8 +114,8 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
         style={styles.button}
       />
 
-      <Pressable onPress={() => setError(undefined)}>
-        <Text style={styles.resend}>Resend Code</Text>
+      <Pressable onPress={handleResend} disabled={resending}>
+        <Text style={styles.resend}>{resending ? 'Sending...' : 'Resend Code'}</Text>
       </Pressable>
     </ScreenContainer>
   );
@@ -124,12 +141,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.md,
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  devHint: {
-    fontSize: fontSize.sm,
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
     marginBottom: spacing['2xl'],
   },
   otpRow: {

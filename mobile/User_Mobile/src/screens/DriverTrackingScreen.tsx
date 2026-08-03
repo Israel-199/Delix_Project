@@ -1,20 +1,18 @@
 import React, { useEffect } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import io from 'socket.io-client';
-import { InlineBottomSheet, MapContainer } from '../components';
-import { SOCKET_URL, VEHICLE_CATEGORIES } from '../constants';
+import { DelixButton, InlineBottomSheet, MapContainer } from '../components';
+import { VEHICLE_CATEGORIES } from '../constants';
 import { findServiceModel } from '../constants/serviceModels';
 import { colors, spacing } from '../design-system';
 import { fontSize, fontWeight } from '../design-system/typography';
 import { RootStackParamList } from '../navigation/types';
+import { onOrderStatusChanged } from '../services/socketService';
 import { useBookingStore } from '../store/bookingStore';
 import { MapMarkerData } from '../types';
 import { heightScale, moderateScale, widthScale } from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DriverTracking'>;
-
-const socket = io(SOCKET_URL);
 
 const PICKUP_COORD = { latitude: 9.0205, longitude: 38.7469 };
 const DEST_COORD = { latitude: 9.0305, longitude: 38.7669 };
@@ -47,16 +45,18 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
   ];
 
   useEffect(() => {
-    const onStatusChange = (payload: { status: string; orderId?: string }) => {
+    const unsubscribe = onOrderStatusChanged((payload) => {
       if (payload.orderId && payload.orderId !== orderId) return;
+
       if (payload.status === 'DRIVER_ACCEPTED') {
         setBookingStatus('driver_assigned');
       }
-    };
+      if (payload.status === 'DELIVERY_COMPLETED') {
+        setBookingStatus('completed');
+        navigation.replace('DeliveryCompleted', { orderId });
+      }
+    });
 
-    socket.on('order_status_changed', onStatusChange);
-
-    // Demo: auto-assign driver after 3s if backend doesn't respond
     const demoTimer = setTimeout(() => {
       if (useBookingStore.getState().bookingStatus === 'searching') {
         setBookingStatus('driver_assigned');
@@ -64,10 +64,15 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
     }, 3000);
 
     return () => {
-      socket.off('order_status_changed', onStatusChange);
+      unsubscribe();
       clearTimeout(demoTimer);
     };
-  }, [orderId, setBookingStatus]);
+  }, [orderId, setBookingStatus, navigation]);
+
+  const handleCompleteDelivery = () => {
+    setBookingStatus('completed');
+    navigation.replace('DeliveryCompleted', { orderId });
+  };
 
   return (
     <View style={styles.root}>
@@ -84,6 +89,7 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
           <Text style={styles.searchingSub}>
             Notifying {category?.name} {model?.name} drivers near {pickupLocation}
           </Text>
+          <Text style={styles.orderRef}>Order {orderId}</Text>
           <View style={styles.loaderPulse} />
         </InlineBottomSheet>
       )}
@@ -116,6 +122,13 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
               <Text style={styles.phoneIcon}>📞</Text>
             </Pressable>
           </View>
+
+          <DelixButton
+            title="Mark as Delivered"
+            variant="secondary"
+            onPress={handleCompleteDelivery}
+            style={styles.completeBtn}
+          />
         </InlineBottomSheet>
       )}
     </View>
@@ -131,6 +144,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.sm,
     textAlign: 'center',
+  },
+  orderRef: {
+    fontSize: fontSize.sm,
+    color: colors.textPlaceholder,
+    marginTop: spacing.xs,
   },
   loaderPulse: {
     width: moderateScale(50),
@@ -183,6 +201,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   phoneIcon: { fontSize: moderateScale(20) },
+  completeBtn: { marginTop: spacing.lg },
 });
 
 export default DriverTrackingScreen;

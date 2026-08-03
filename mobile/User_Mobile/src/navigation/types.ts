@@ -8,4 +8,5 @@ export type RootStackParamList = {
   CargoInfo: undefined;
   BookingSummary: undefined;
   DriverTracking: { orderId: string };
+  DeliveryCompleted: { orderId: string };
 };

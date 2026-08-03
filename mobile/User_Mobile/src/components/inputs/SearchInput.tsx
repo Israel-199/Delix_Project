@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radius, spacing } from '../../design-system';
-import { fontSize, fontWeight } from '../../design-system/typography';
+import { fontFamilies, typography } from '../../theme/typography';
 import { heightScale } from '../../utils/responsive';
 import DelixInput, { DelixInputProps } from './DelixInput';
 
@@ -48,7 +48,7 @@ export const SearchInput = ({
   );
 };
 
-/** Large home-screen search bar variant. */
+/** Large home-screen search bar variant — matches "Where to?" reference. */
 export const HomeSearchBar = ({
   value,
   onChangeText,
@@ -91,15 +91,15 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   icon: {
-    fontSize: fontSize.lg,
+    fontSize: typography.subtitle.fontSize,
   },
   clear: {
-    fontSize: fontSize.md,
+    ...typography.caption,
+    fontFamily: fontFamilies.bold,
     color: colors.textSecondary,
-    fontWeight: fontWeight.bold,
   },
   inputText: {
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamilies.bold,
   },
   homeBar: {
     flexDirection: 'row',
@@ -112,20 +112,17 @@ const styles = StyleSheet.create({
   homePlaceholder: {
     flex: 1,
     marginLeft: spacing.sm,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
+    ...typography.whereTo,
     color: colors.textPlaceholder,
   },
   homeArrow: {
-    fontSize: fontSize.xl,
+    ...typography.title,
     color: colors.textPrimary,
-    fontWeight: fontWeight.black,
   },
   homeInputText: {
     flex: 1,
     marginLeft: spacing.sm,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
+    ...typography.whereTo,
     color: colors.textPrimary,
     paddingVertical: 0,
   },

@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing } from '../design-system';
-import { fontSize, fontWeight, textStyles } from '../design-system/typography';
+import { textStyles, typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 
@@ -54,20 +54,17 @@ const styles = StyleSheet.create({
   },
   logo: {
     ...textStyles.brand,
-    fontSize: fontSize.display,
   },
   tagline: {
     marginTop: spacing.sm,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    ...typography.subtitle,
     color: colors.textSecondary,
   },
   loader: {
     position: 'absolute',
     bottom: spacing['4xl'],
-    fontSize: fontSize.sm,
+    ...typography.small,
     color: colors.textPlaceholder,
-    fontWeight: fontWeight.medium,
   },
 });
 

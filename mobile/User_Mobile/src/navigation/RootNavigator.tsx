@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import BookingSummaryScreen from '../screens/BookingSummaryScreen';
 import CargoInfoScreen from '../screens/CargoInfoScreen';
 import CustomerHomeScreen from '../screens/CustomerHomeScreen';
+import DeliveryCompletedScreen from '../screens/DeliveryCompletedScreen';
 import DriverTrackingScreen from '../screens/DriverTrackingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import MapBookingScreen from '../screens/MapBookingScreen';
@@ -27,6 +28,7 @@ const RootNavigator = () => (
     <Stack.Screen name="CargoInfo" component={CargoInfoScreen} />
     <Stack.Screen name="BookingSummary" component={BookingSummaryScreen} />
     <Stack.Screen name="DriverTracking" component={DriverTrackingScreen} />
+    <Stack.Screen name="DeliveryCompleted" component={DeliveryCompletedScreen} />
   </Stack.Navigator>
 );
 

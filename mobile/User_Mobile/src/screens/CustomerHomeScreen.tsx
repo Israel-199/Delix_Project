@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
+  AppDrawer,
   DelixInput,
   HomeSearchBar,
   PromoBanner,
@@ -10,7 +11,7 @@ import {
 } from '../components';
 import { RECENT_LOCATIONS, VEHICLE_CATEGORIES } from '../constants';
 import { colors, spacing } from '../design-system';
-import { fontSize, fontWeight, textStyles } from '../design-system/typography';
+import { textStyles, typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { useBookingStore } from '../store/bookingStore';
 import { VehicleCategoryId } from '../types';
@@ -19,13 +20,14 @@ import { moderateScale } from '../utils/responsive';
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerHome'>;
 
 const CustomerHomeScreen = ({ navigation }: Props) => {
-  const { vehicleCategoryId, setRoute, setVehicleCategory } = useBookingStore();
-  const [pickupLocation, setPickupLocation] = useState('BL-03-505 Street, Bole');
+  const { pickupLocation, vehicleCategoryId, setRoute, setVehicleCategory } = useBookingStore();
   const [destination, setDestination] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [localPickup, setLocalPickup] = useState(pickupLocation);
 
   const handleDestinationSelect = (dest: string) => {
-    setRoute(pickupLocation, dest);
+    setRoute(localPickup, dest);
     setDestination(dest);
     setIsSearching(false);
     navigation.navigate('MapBooking');
@@ -43,7 +45,7 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
             <Text style={styles.backIcon}>←</Text>
           </Pressable>
           <View style={styles.searchInputs}>
-            <DelixInput value={pickupLocation} onChangeText={setPickupLocation} />
+            <DelixInput value={localPickup} onChangeText={setLocalPickup} />
             <DelixInput
               placeholder="Destination"
               value={destination}
@@ -76,16 +78,21 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
   }
 
   return (
-    <ScreenContainer scrollable contentStyle={styles.homeContent}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.brandTitle}>DELIX</Text>
-          <Text style={styles.locationSubtitle}>Your location ›</Text>
+    <>
+      <ScreenContainer scrollable contentStyle={styles.homeContent}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.brandTitle}>DELIX</Text>
+            <Text style={styles.locationSubtitle}>Your location ›</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => setDrawerOpen(true)}
+          >
+            <Text style={styles.menuIcon}>☰</Text>
+          </Pressable>
         </View>
-        <Pressable accessibilityRole="button" hitSlop={8}>
-          <Text style={styles.menuIcon}>☰</Text>
-        </Pressable>
-      </View>
 
       <ScrollView
         horizontal
@@ -116,7 +123,10 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
         title="DELIX CARGO IS HERE"
         subtitle="Fast and transparent cargo delivery"
       />
-    </ScreenContainer>
+      </ScreenContainer>
+
+      <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+    </>
   );
 };
 
@@ -129,10 +139,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   brandTitle: { ...textStyles.brand },
-  locationSubtitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
+  locationSubtitle: { ...typography.locationLabel },
   menuIcon: { fontSize: moderateScale(24) },
   vehicleScroll: { marginTop: spacing.md, marginBottom: spacing.xl, flexGrow: 0 },
   vehicleScrollContent: { paddingHorizontal: spacing.lg, alignItems: 'flex-start' },
@@ -146,7 +153,7 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
     marginBottom: spacing.md,
   },
-  backIcon: { fontSize: moderateScale(24), fontWeight: fontWeight.black, marginTop: spacing.sm },
+  backIcon: { ...typography.h3, marginTop: spacing.sm },
   searchInputs: { flex: 1, marginLeft: spacing.md, gap: spacing.xs },
   destInput: { marginTop: spacing.xs },
   recentItem: {
@@ -158,8 +165,8 @@ const styles = StyleSheet.create({
   },
   recentPin: { fontSize: moderateScale(20) },
   recentBody: { flex: 1 },
-  recentTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold },
-  recentSubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.xxs },
+  recentTitle: { ...typography.addressTitle },
+  recentSubtitle: { ...typography.addressSubtitle, marginTop: spacing.xxs },
 });
 
 export default CustomerHomeScreen;

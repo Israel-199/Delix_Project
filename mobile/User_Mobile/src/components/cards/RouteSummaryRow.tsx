@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, spacing } from '../../design-system';
-import { fontSize, fontWeight } from '../../design-system/typography';
+import { typography } from '../../theme/typography';
 
 interface RouteSummaryRowProps {
   pickup: string;
@@ -36,24 +36,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  pickupIcon: { fontSize: fontSize.base },
+  pickupIcon: { fontSize: typography.body.fontSize },
   pickupText: {
     flex: 1,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.textSecondary,
+    ...typography.addressSubtitle,
   },
-  destIcon: { fontSize: fontSize.base },
+  destIcon: { fontSize: typography.body.fontSize },
   destText: {
     flex: 1,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.extrabold,
-    color: colors.textPrimary,
+    ...typography.addressTitle,
   },
   eta: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.textSecondary,
+    ...typography.timeLabel,
   },
 });
 

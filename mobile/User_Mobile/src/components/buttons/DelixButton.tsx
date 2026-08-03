@@ -9,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { colors, radius, spacing } from '../../design-system';
-import { fontSize, fontWeight } from '../../design-system/typography';
+import { textStyles } from '../../theme/typography';
 import { heightScale } from '../../utils/responsive';
 
 export type DelixButtonVariant = 'primary' | 'secondary' | 'danger' | 'text';
@@ -53,7 +53,7 @@ export const DelixButton = ({
           size="small"
         />
       ) : (
-        <Text style={[styles.label, variantStyles[variant].label]}>{title}</Text>
+        <Text style={[textStyles.button, variantStyles[variant].label]}>{title}</Text>
       )}
     </Pressable>
   );
@@ -70,7 +70,7 @@ const variantStyles = {
       borderWidth: 1.5,
       borderColor: colors.primary,
     },
-    label: { color: colors.primary },
+    label: { color: colors.primary, fontFamily: textStyles.button.fontFamily },
   },
   danger: {
     container: { backgroundColor: colors.error },
@@ -82,7 +82,7 @@ const variantStyles = {
       minHeight: heightScale(40),
       paddingHorizontal: spacing.sm,
     },
-    label: { color: colors.primary },
+    label: { color: colors.primary, fontFamily: textStyles.button.fontFamily },
   },
 } as const;
 
@@ -96,10 +96,6 @@ const styles = StyleSheet.create({
   },
   fullWidth: {
     width: '100%',
-  },
-  label: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.extrabold,
   },
   pressed: {
     opacity: 0.92,

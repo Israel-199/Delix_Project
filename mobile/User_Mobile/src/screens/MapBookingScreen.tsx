@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   DelixButton,
@@ -9,12 +9,13 @@ import {
 } from '../components';
 import { RouteSummaryRow } from '../components/cards/RouteSummaryRow';
 import { VEHICLE_CATEGORIES } from '../constants';
-import { calculatePrice, getServiceModelsForCategory } from '../constants/serviceModels';
+import { getServiceModelsForCategory } from '../constants/serviceModels';
 import { colors, radius, spacing } from '../design-system';
 import { fontSize, fontWeight } from '../design-system/typography';
 import { RootStackParamList } from '../navigation/types';
 import { useBookingStore } from '../store/bookingStore';
-import { MapMarkerData } from '../types';
+import { MapMarkerData, ServiceModelId } from '../types';
+import { formatCurrencyLabel } from '../utils/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MapBooking'>;
 
@@ -27,31 +28,36 @@ const MapBookingScreen = ({ navigation }: Props) => {
     destination,
     vehicleCategoryId,
     serviceModelId,
-    distanceKm,
     travelEta,
     setVehicleCategory,
     setServiceModel,
+    fetchEstimatesForModels,
+    estimateError,
   } = useBookingStore();
 
-  const isDjibouti = pickupLocation.toLowerCase().includes('djibouti');
   const serviceModels = getServiceModelsForCategory(vehicleCategoryId);
+  const [priceMap, setPriceMap] = useState<Record<string, { price: number; currency: string }>>({});
+  const [loadingPrices, setLoadingPrices] = useState(false);
 
   const mapMarkers: MapMarkerData[] = [
     { id: 'pickup', coordinate: PICKUP_COORD, label: '3 min', type: 'pickup' },
     { id: 'dest', coordinate: DEST_COORD, label: 'Arrive 10:34 AM', type: 'destination' },
   ];
 
-  const modelsWithPrices = useMemo(
-    () =>
-      serviceModels.map((model) => {
-        const { price, currency } = calculatePrice(distanceKm, model.id, isDjibouti);
-        return {
-          model,
-          priceLabel: `${currency} ~${price}`,
-        };
-      }),
-    [serviceModels, distanceKm, isDjibouti]
-  );
+  useEffect(() => {
+    let cancelled = false;
+    const loadPrices = async () => {
+      setLoadingPrices(true);
+      const modelIds = serviceModels.map((m) => m.id as ServiceModelId);
+      const estimates = await fetchEstimatesForModels(modelIds);
+      if (!cancelled) {
+        setPriceMap(estimates);
+        setLoadingPrices(false);
+      }
+    };
+    loadPrices();
+    return () => { cancelled = true; };
+  }, [vehicleCategoryId, pickupLocation, fetchEstimatesForModels, serviceModels]);
 
   const handleContinue = () => {
     if (!serviceModelId) return;
@@ -96,21 +102,34 @@ const MapBookingScreen = ({ navigation }: Props) => {
           })}
         </ScrollView>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.modelsRow}
-        >
-          {modelsWithPrices.map(({ model, priceLabel }) => (
-            <ServiceModelCard
-              key={`${model.categoryId}-${model.id}`}
-              model={model}
-              priceLabel={priceLabel}
-              selected={serviceModelId === model.id}
-              onPress={() => setServiceModel(model.id)}
-            />
-          ))}
-        </ScrollView>
+        {loadingPrices ? (
+          <ActivityIndicator color={colors.primary} style={styles.loader} />
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.modelsRow}
+          >
+            {serviceModels.map((model) => {
+              const estimate = priceMap[model.id];
+              const priceLabel = estimate
+                ? formatCurrencyLabel(estimate.currency, estimate.price)
+                : '—';
+              return (
+                <ServiceModelCard
+                  key={`${model.categoryId}-${model.id}`}
+                  model={model}
+                  priceLabel={priceLabel}
+                  selected={serviceModelId === model.id}
+                  unavailable={!estimate && !loadingPrices}
+                  onPress={() => setServiceModel(model.id)}
+                />
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {estimateError ? <Text style={styles.error}>{estimateError}</Text> : null}
 
         <DelixButton
           title={serviceModelId ? 'Continue' : 'Select service class'}
@@ -150,6 +169,15 @@ const styles = StyleSheet.create({
   },
   modelsRow: {
     paddingBottom: spacing.md,
+  },
+  loader: {
+    marginVertical: spacing.lg,
+  },
+  error: {
+    color: colors.error,
+    fontSize: fontSize.sm,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
 });
 

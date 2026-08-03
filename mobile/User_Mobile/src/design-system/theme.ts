@@ -2,7 +2,13 @@ import { colors } from './colors';
 import { radius } from './radius';
 import { shadows } from './shadows';
 import { screenPadding, spacing } from './spacing';
-import { fontFamily, fontSize, fontWeight, lineHeight, textStyles } from './typography';
+import {
+  fontFamilies,
+  fontSize,
+  lineHeight,
+  textStyles,
+  typography,
+} from '../theme/typography';
 
 export const theme = {
   colors,
@@ -11,11 +17,11 @@ export const theme = {
   radius,
   shadows,
   typography: {
-    fontFamily,
+    fontFamily: fontFamilies,
     fontSize,
-    fontWeight,
     lineHeight,
     textStyles,
+    tokens: typography,
   },
 } as const;
 
