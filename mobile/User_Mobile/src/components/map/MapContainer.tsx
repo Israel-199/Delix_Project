@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect, useRef } from 'react';
 import {
   Pressable,
   StyleProp,
@@ -13,6 +13,7 @@ import { fontSize, fontWeight } from '../../design-system/typography';
 import { DEFAULT_MAP_REGION } from '../../constants';
 import { MapMarkerData } from '../../types';
 import { moderateScale, widthScale, heightScale } from '../../utils/responsive';
+import { MapMarkerPin } from './MapMarkerPin';
 
 export interface MapContainerProps extends Omit<MapViewProps, 'style'> {
   style?: StyleProp<ViewStyle>;
@@ -23,13 +24,11 @@ export interface MapContainerProps extends Omit<MapViewProps, 'style'> {
   backButtonOverlay?: ReactNode;
   rightOverlay?: ReactNode;
   initialRegion?: Region;
+  /** When true, map zooms to fit route + markers. */
+  fitToRoute?: boolean;
+  /** Bottom padding so markers aren't hidden under the sheet (px). */
+  mapPaddingBottom?: number;
 }
-
-const markerEmoji: Record<NonNullable<MapMarkerData['type']>, string> = {
-  pickup: '📍',
-  destination: '🏁',
-  driver: '🚗',
-};
 
 export const MapContainer = ({
   style,
@@ -40,32 +39,66 @@ export const MapContainer = ({
   backButtonOverlay,
   rightOverlay,
   initialRegion = DEFAULT_MAP_REGION,
+  fitToRoute = true,
+  mapPaddingBottom = 0,
   children,
   ...mapProps
 }: MapContainerProps) => {
+  const mapRef = useRef<MapView>(null);
+
+  useEffect(() => {
+    if (!fitToRoute || !mapRef.current) return;
+
+    const coords = [
+      ...markers.map((m) => m.coordinate),
+      ...(routeCoordinates ?? []),
+    ];
+
+    if (coords.length < 2) return;
+
+    const timer = setTimeout(() => {
+      mapRef.current?.fitToCoordinates(coords, {
+        edgePadding: {
+          top: heightScale(80),
+          right: widthScale(40),
+          bottom: mapPaddingBottom + heightScale(40),
+          left: widthScale(40),
+        },
+        animated: true,
+      });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [markers, routeCoordinates, fitToRoute, mapPaddingBottom]);
+
   return (
     <View style={[styles.container, style]}>
-      <MapView style={styles.map} initialRegion={initialRegion} {...mapProps}>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={initialRegion}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        {...mapProps}
+      >
         {routeCoordinates && routeCoordinates.length > 1 && (
           <Polyline
             coordinates={routeCoordinates}
             strokeColor={colors.success}
-            strokeWidth={4}
+            strokeWidth={5}
+            lineCap="round"
+            lineJoin="round"
           />
         )}
 
         {markers.map((marker) => (
-          <Marker key={marker.id} coordinate={marker.coordinate}>
-            <View style={styles.markerWrap}>
-              <Text style={styles.markerIcon}>
-                {markerEmoji[marker.type ?? 'pickup']}
-              </Text>
-              {marker.label ? (
-                <View style={styles.markerBadge}>
-                  <Text style={styles.markerBadgeText}>{marker.label}</Text>
-                </View>
-              ) : null}
-            </View>
+          <Marker
+            key={marker.id}
+            coordinate={marker.coordinate}
+            anchor={{ x: 0.5, y: typeAnchorY(marker.type) }}
+            tracksViewChanges={false}
+          >
+            <MapMarkerPin marker={marker} />
           </Marker>
         ))}
 
@@ -90,33 +123,19 @@ export const MapContainer = ({
   );
 };
 
+const typeAnchorY = (type?: MapMarkerData['type']) => {
+  if (type === 'user' || type === 'driver') return 0.5;
+  if (type === 'destination') return 0.85;
+  return 0.9;
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.mapBackground,
-    position: 'relative',
   },
   map: {
     flex: 1,
-  },
-  markerWrap: {
-    alignItems: 'center',
-  },
-  markerIcon: {
-    fontSize: moderateScale(24),
-  },
-  markerBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: widthScale(10),
-    paddingVertical: heightScale(6),
-    borderRadius: radius.sm,
-    marginTop: spacing.xxs,
-    ...shadows.sm,
-  },
-  markerBadgeText: {
-    color: colors.textOnPrimary,
-    fontWeight: fontWeight.extrabold,
-    fontSize: fontSize.sm,
   },
   overlayButton: {
     position: 'absolute',

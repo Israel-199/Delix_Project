@@ -21,7 +21,13 @@
       }
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Delix to use your location to show your position and route on the map."
+        }
+      ]
     ]
   }
 }

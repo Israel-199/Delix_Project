@@ -4,6 +4,7 @@ import {
   Modal,
   PanResponder,
   Pressable,
+  ScrollView,
   StyleProp,
   StyleSheet,
   View,
@@ -16,7 +17,6 @@ export interface BottomSheetProps {
   visible: boolean;
   onClose?: () => void;
   children: ReactNode;
-  /** Height as a fraction of screen (0–1) or absolute number. Defaults to auto content. */
   snapHeight?: number;
   showHandle?: boolean;
   showBackdrop?: boolean;
@@ -119,12 +119,13 @@ export const BottomSheet = ({
   );
 };
 
-/** Inline bottom sheet anchored to the bottom of its parent (non-modal). */
+/** Fixed-height inline sheet for map screens — no drag, prevents layout jitter. */
 export interface InlineBottomSheetProps {
   children: ReactNode;
   showHandle?: boolean;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
+  maxHeightRatio?: number;
 }
 
 export const InlineBottomSheet = ({
@@ -132,12 +133,26 @@ export const InlineBottomSheet = ({
   showHandle = true,
   style,
   contentStyle,
-}: InlineBottomSheetProps) => (
-  <View style={[styles.inlineSheet, style]}>
-    {showHandle && <View style={styles.handle} />}
-    <View style={[styles.content, contentStyle]}>{children}</View>
-  </View>
-);
+  maxHeightRatio = 0.42,
+}: InlineBottomSheetProps) => {
+  const maxHeight = heightScale(812) * maxHeightRatio;
+
+  return (
+    <View style={[styles.inlineSheet, { maxHeight }, style]}>
+      {showHandle && <View style={styles.handle} />}
+      <ScrollView
+        style={styles.inlineScroll}
+        contentContainerStyle={[styles.content, contentStyle]}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+      </ScrollView>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   modalRoot: {
@@ -159,10 +174,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius['2xl'],
     borderTopRightRadius: radius['2xl'],
     ...shadows.sheet,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    width: '100%',
+  },
+  inlineScroll: {
+    flexGrow: 0,
   },
   handle: {
     alignSelf: 'center',
@@ -171,7 +186,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: colors.border,
     marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.xxs,
   },
   content: {
     paddingHorizontal: spacing.xl,

@@ -8,6 +8,7 @@ import { moderateScale, widthScale } from '../../utils/responsive';
 export interface ServiceModelCardProps {
   model: ServiceModel;
   priceLabel: string;
+  vehicleIcon?: string;
   selected?: boolean;
   unavailable?: boolean;
   onPress?: () => void;
@@ -17,6 +18,7 @@ export interface ServiceModelCardProps {
 export const ServiceModelCard = ({
   model,
   priceLabel,
+  vehicleIcon = '🚗',
   selected = false,
   unavailable = false,
   onPress,
@@ -36,7 +38,7 @@ export const ServiceModelCard = ({
     ]}
   >
     <Text style={styles.eta}>{model.eta ?? '—'}</Text>
-    <Text style={styles.vehicleIcon}>🚗</Text>
+    <Text style={styles.vehicleIcon}>{vehicleIcon}</Text>
     <Text style={[styles.name, selected && styles.nameSelected]} numberOfLines={1}>
       {model.name}
     </Text>

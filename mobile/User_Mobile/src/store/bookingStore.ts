@@ -1,20 +1,29 @@
 import { create } from 'zustand';
 import { estimateOrderPrice } from '../services/orderService';
 import { getAuthToken } from '../services/apiClient';
+import { calculatePrice } from '../constants/serviceModels';
+import { CargoCategoryId } from '../constants/cargo';
 import {
+  NearbyDriver,
   PaymentMethodId,
   ServiceModelId,
   VehicleCategoryId,
+  LocationPoint,
 } from '../types';
-import { CargoCategoryId } from '../constants/cargo';
 
 interface BookingState {
   pickupLocation: string;
   destination: string;
+  pickupCoordinate: LocationPoint | null;
+  destinationCoordinate: LocationPoint | null;
+  userCoordinate: LocationPoint | null;
+  routeCoordinates: Array<{ latitude: number; longitude: number }>;
+  nearbyDrivers: NearbyDriver[];
   vehicleCategoryId: VehicleCategoryId;
   serviceModelId: ServiceModelId | null;
   distanceKm: number;
   travelEta: string;
+  arrivalLabel: string;
   paymentMethod: PaymentMethodId;
   cargoCategory: CargoCategoryId | null;
   cargoDescription: string;
@@ -29,6 +38,16 @@ interface BookingState {
   bookingStatus: 'idle' | 'searching' | 'driver_assigned' | 'in_transit' | 'completed';
 
   setRoute: (pickup: string, destination: string) => void;
+  setRouteGeometry: (payload: {
+    pickupCoordinate: LocationPoint | null;
+    destinationCoordinate: LocationPoint | null;
+    userCoordinate?: LocationPoint | null;
+    routeCoordinates: Array<{ latitude: number; longitude: number }>;
+    distanceKm: number;
+    travelEta: string;
+    arrivalLabel: string;
+    nearbyDrivers?: NearbyDriver[];
+  }) => void;
   setVehicleCategory: (id: VehicleCategoryId) => void;
   setServiceModel: (id: ServiceModelId) => void;
   setPaymentMethod: (id: PaymentMethodId) => void;
@@ -50,10 +69,16 @@ const DEFAULT_PICKUP = 'BL-03-505 Street, Bole';
 const initialState = {
   pickupLocation: DEFAULT_PICKUP,
   destination: '',
+  pickupCoordinate: null as LocationPoint | null,
+  destinationCoordinate: null as LocationPoint | null,
+  userCoordinate: null as LocationPoint | null,
+  routeCoordinates: [] as Array<{ latitude: number; longitude: number }>,
+  nearbyDrivers: [] as NearbyDriver[],
   vehicleCategoryId: 'pickup' as VehicleCategoryId,
   serviceModelId: null as ServiceModelId | null,
   distanceKm: 5.2,
   travelEta: '14 min',
+  arrivalLabel: '',
   paymentMethod: 'cash' as PaymentMethodId,
   cargoCategory: null as CargoCategoryId | null,
   cargoDescription: '',
@@ -72,7 +97,17 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   ...initialState,
 
   setRoute: (pickup, destination) =>
-    set({ pickupLocation: pickup, destination, serviceModelId: null, estimateError: null }),
+    set({
+      pickupLocation: pickup,
+      destination,
+      serviceModelId: null,
+      estimateError: null,
+      routeCoordinates: [],
+      pickupCoordinate: null,
+      destinationCoordinate: null,
+    }),
+
+  setRouteGeometry: (payload) => set(payload),
 
   setVehicleCategory: (id) =>
     set({ vehicleCategoryId: id, serviceModelId: null, estimateError: null }),
@@ -113,9 +148,12 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       );
       set({ estimatedPrice: price, currency, isEstimating: false });
     } catch (error) {
+      const fallback = calculatePrice(state.distanceKm, modelId);
       set({
+        estimatedPrice: fallback.price,
+        currency: fallback.currency,
         isEstimating: false,
-        estimateError: error instanceof Error ? error.message : 'Failed to fetch price',
+        estimateError: null,
       });
     }
   },
@@ -141,7 +179,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           );
           results[modelId] = estimate;
         } catch {
-          // Leave model without price — UI shows dash
+          results[modelId] = calculatePrice(state.distanceKm, modelId);
         }
       })
     );

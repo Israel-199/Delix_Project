@@ -73,5 +73,13 @@ export interface MapMarkerData {
   id: string;
   coordinate: { latitude: number; longitude: number };
   label?: string;
-  type?: 'pickup' | 'destination' | 'driver';
+  type?: 'user' | 'pickup' | 'destination' | 'driver';
+  vehicleCategory?: VehicleCategoryId;
+}
+
+export interface NearbyDriver {
+  id: string;
+  coordinate: { latitude: number; longitude: number };
+  vehicleCategory: VehicleCategoryId;
+  etaMinutes?: number;
 }
