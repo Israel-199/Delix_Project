@@ -3,29 +3,53 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AppDrawer,
+  BottomSheet,
+  CargoSquareCard,
+  DelixButton,
   DelixInput,
   HomeSearchBar,
   PromoBanner,
   ScreenContainer,
-  VehicleCard,
 } from '../components';
-import { RECENT_LOCATIONS, VEHICLE_CATEGORIES } from '../constants';
-import { colors, spacing } from '../design-system';
-import { textStyles, typography } from '../theme/typography';
+import { CARGO_TYPE_CATEGORIES, RECENT_LOCATIONS } from '../constants';
+import { colors, radius, spacing } from '../design-system';
+import { fontSize, fontWeight, textStyles, typography } from '../design-system/typography';
 import { RootStackParamList } from '../navigation/types';
 import { useBookingStore } from '../store/bookingStore';
 import { RecentLocation } from '../constants/locations';
-import { VehicleCategoryId } from '../types';
+import { CargoTypeKey, VehicleCategoryId } from '../types';
 import { moderateScale } from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerHome'>;
 
 const CustomerHomeScreen = ({ navigation }: Props) => {
-  const { pickupLocation, vehicleCategoryId, setRoute, setVehicleCategory } = useBookingStore();
+  const {
+    pickupLocation,
+    cargoTypeKey,
+    selectedVehicleId,
+    setRoute,
+    setCargoTypeKey,
+    setSelectedVehicleId,
+  } = useBookingStore();
+
   const [destination, setDestination] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [vehicleSheetOpen, setVehicleSheetOpen] = useState(false);
   const [localPickup, setLocalPickup] = useState(pickupLocation);
+
+  const activeCategory =
+    CARGO_TYPE_CATEGORIES.find((c) => c.id === cargoTypeKey) ?? CARGO_TYPE_CATEGORIES[0];
+
+  const handleCargoCardPress = (categoryKey: CargoTypeKey) => {
+    setCargoTypeKey(categoryKey);
+    const cat = CARGO_TYPE_CATEGORIES.find((c) => c.id === categoryKey);
+    if (cat && cat.vehicles.length > 0) {
+      // Pre-select first vehicle of the category
+      setSelectedVehicleId(cat.vehicles[0].id);
+    }
+    setVehicleSheetOpen(true);
+  };
 
   const handleDestinationSelect = (loc: RecentLocation) => {
     setRoute(localPickup, loc.title, {
@@ -38,6 +62,11 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
     setDestination(loc.title);
     setIsSearching(false);
     navigation.navigate('MapBooking');
+  };
+
+  const handleSelectLocationFromSheet = () => {
+    setVehicleSheetOpen(false);
+    setIsSearching(true);
   };
 
   if (isSearching) {
@@ -101,38 +130,84 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
           </Pressable>
         </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.vehicleScroll}
-        contentContainerStyle={styles.vehicleScrollContent}
-      >
-        {VEHICLE_CATEGORIES.map((vehicle) => (
-          <VehicleCard
-            key={vehicle.id}
-            vehicle={{
-              id: vehicle.id,
-              name: vehicle.name,
-              icon: vehicle.icon,
-              eta: vehicle.eta,
-            }}
-            selected={vehicleCategoryId === vehicle.id}
-            onPress={() => setVehicleCategory(vehicle.id as VehicleCategoryId)}
-          />
-        ))}
-      </ScrollView>
+        {/* 3 Perfect Square Responsive Cargo Cards */}
+        <View style={styles.cargoGridContainer}>
+          <Text style={styles.sectionLabel}>Select Cargo Type</Text>
+          <View style={styles.cargoGrid}>
+            {CARGO_TYPE_CATEGORIES.map((cat) => (
+              <CargoSquareCard
+                key={cat.id}
+                title={cat.title}
+                image={cat.image}
+                selected={cargoTypeKey === cat.id}
+                onPress={() => handleCargoCardPress(cat.id)}
+              />
+            ))}
+          </View>
+        </View>
 
-      <View style={styles.searchWrap}>
-        <HomeSearchBar onPress={() => setIsSearching(true)} />
-      </View>
+        <View style={styles.searchWrap}>
+          <HomeSearchBar onPress={() => setIsSearching(true)} />
+        </View>
 
-      <PromoBanner
-        title="DELIX CARGO IS HERE"
-        subtitle="Fast and transparent cargo delivery"
-      />
+        <PromoBanner
+          title="DELIX CARGO IS HERE"
+          subtitle="Fast and transparent cargo delivery"
+        />
       </ScreenContainer>
 
+      {/* Drawer Menu */}
       <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+
+      {/* Vehicle Selection Drawer Sheet */}
+      <BottomSheet
+        visible={vehicleSheetOpen}
+        onClose={() => setVehicleSheetOpen(false)}
+        contentStyle={styles.sheetContent}
+      >
+        <View style={styles.sheetHeader}>
+          <Text style={styles.sheetTitle}>{activeCategory.title} Options</Text>
+          <Text style={styles.sheetSubtitle}>{activeCategory.subtitle}</Text>
+        </View>
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.vehicleList}
+          contentContainerStyle={styles.vehicleListContent}
+        >
+          {activeCategory.vehicles.map((v) => {
+            const isSelected = selectedVehicleId === v.id;
+            return (
+              <Pressable
+                key={v.id}
+                style={[styles.vehicleOptionCard, isSelected && styles.vehicleOptionSelected]}
+                onPress={() => setSelectedVehicleId(v.id as VehicleCategoryId)}
+              >
+                <Text style={styles.vehicleIcon}>{v.icon}</Text>
+                <View style={styles.vehicleInfo}>
+                  <View style={styles.vehicleRowHeader}>
+                    <Text style={[styles.vehicleName, isSelected && styles.vehicleNameSelected]}>
+                      {v.name}
+                    </Text>
+                    <Text style={styles.vehicleEta}>⚡ {v.eta}</Text>
+                  </View>
+                  <Text style={styles.vehicleDesc}>{v.description}</Text>
+                </View>
+                <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                  {isSelected && <View style={styles.radioInner} />}
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <DelixButton
+          title={selectedVehicleId ? 'Select Location' : 'Select a Vehicle'}
+          disabled={!selectedVehicleId}
+          onPress={handleSelectLocationFromSheet}
+          style={styles.locationBtn}
+        />
+      </BottomSheet>
     </>
   );
 };
@@ -148,8 +223,24 @@ const styles = StyleSheet.create({
   brandTitle: { ...textStyles.brand },
   locationSubtitle: { ...typography.locationLabel },
   menuIcon: { fontSize: moderateScale(24) },
-  vehicleScroll: { marginTop: spacing.md, marginBottom: spacing.xl, flexGrow: 0 },
-  vehicleScrollContent: { paddingHorizontal: spacing.lg, alignItems: 'flex-start' },
+  cargoGridContainer: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  sectionLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.sm,
+  },
+  cargoGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
   searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
   searchScreen: { paddingHorizontal: spacing.lg },
   searchHeader: {
@@ -174,6 +265,94 @@ const styles = StyleSheet.create({
   recentBody: { flex: 1 },
   recentTitle: { ...typography.addressTitle },
   recentSubtitle: { ...typography.addressSubtitle, marginTop: spacing.xxs },
+  sheetContent: {
+    paddingBottom: spacing.lg,
+  },
+  sheetHeader: {
+    marginBottom: spacing.md,
+  },
+  sheetTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.extrabold,
+    color: colors.textPrimary,
+  },
+  sheetSubtitle: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: spacing.xxs,
+  },
+  vehicleList: {
+    maxHeight: moderateScale(280),
+    marginBottom: spacing.md,
+  },
+  vehicleListContent: {
+    gap: spacing.xs,
+  },
+  vehicleOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.backgroundTertiary,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.transparent,
+  },
+  vehicleOptionSelected: {
+    backgroundColor: colors.primaryTint,
+    borderColor: colors.primary,
+  },
+  vehicleIcon: {
+    fontSize: moderateScale(28),
+    marginRight: spacing.md,
+  },
+  vehicleInfo: {
+    flex: 1,
+  },
+  vehicleRowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  vehicleName: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  vehicleNameSelected: {
+    color: colors.primaryDark,
+  },
+  vehicleEta: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  vehicleDesc: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: spacing.xxs,
+  },
+  radioOuter: {
+    width: moderateScale(20),
+    height: moderateScale(20),
+    borderRadius: radius.full,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: spacing.sm,
+  },
+  radioOuterSelected: {
+    borderColor: colors.primary,
+  },
+  radioInner: {
+    width: moderateScale(10),
+    height: moderateScale(10),
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+  },
+  locationBtn: {
+    marginTop: spacing.xs,
+  },
 });
 
 export default CustomerHomeScreen;

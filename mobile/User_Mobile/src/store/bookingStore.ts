@@ -8,6 +8,7 @@ import {
   PaymentMethodId,
   ServiceModelId,
   VehicleCategoryId,
+  CargoTypeKey,
   LocationPoint,
 } from '../types';
 
@@ -19,7 +20,9 @@ interface BookingState {
   userCoordinate: LocationPoint | null;
   routeCoordinates: Array<{ latitude: number; longitude: number }>;
   nearbyDrivers: NearbyDriver[];
+  cargoTypeKey: CargoTypeKey;
   vehicleCategoryId: VehicleCategoryId;
+  selectedVehicleId: VehicleCategoryId | null;
   serviceModelId: ServiceModelId | null;
   distanceKm: number;
   travelEta: string;
@@ -38,6 +41,8 @@ interface BookingState {
   estimateError: string | null;
   bookingStatus: 'idle' | 'searching' | 'driver_assigned' | 'in_transit' | 'completed';
 
+  setCargoTypeKey: (key: CargoTypeKey) => void;
+  setSelectedVehicleId: (vehicleId: VehicleCategoryId) => void;
   setRoute: (
     pickup: string,
     destination: string,
@@ -82,7 +87,9 @@ const initialState = {
   userCoordinate: null as LocationPoint | null,
   routeCoordinates: [] as Array<{ latitude: number; longitude: number }>,
   nearbyDrivers: [] as NearbyDriver[],
-  vehicleCategoryId: 'pickup' as VehicleCategoryId,
+  cargoTypeKey: 'small' as CargoTypeKey,
+  vehicleCategoryId: 'lada' as VehicleCategoryId,
+  selectedVehicleId: null as VehicleCategoryId | null,
   serviceModelId: null as ServiceModelId | null,
   distanceKm: 5.2,
   travelEta: '14 min',
@@ -104,6 +111,16 @@ const initialState = {
 
 export const useBookingStore = create<BookingState>((set, get) => ({
   ...initialState,
+
+  setCargoTypeKey: (key) => set({ cargoTypeKey: key }),
+
+  setSelectedVehicleId: (vehicleId) =>
+    set({
+      selectedVehicleId: vehicleId,
+      vehicleCategoryId: vehicleId,
+      serviceModelId: null,
+      estimateError: null,
+    }),
 
   setRoute: (pickup, destination, options) =>
     set({

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DelixButton, ScreenContainer } from '../components';
-import { VEHICLE_CATEGORIES } from '../constants';
+import { CARGO_TYPE_CATEGORIES, VEHICLE_CATEGORIES } from '../constants';
 import { findServiceModel } from '../constants/serviceModels';
 import { colors, radius, spacing } from '../design-system';
 import { fontSize, fontWeight, textStyles } from '../design-system/typography';
@@ -16,7 +16,15 @@ const VehicleDetailsScreen = ({ navigation, route }: Props) => {
   const { vehicleCategoryId, serviceModelId, estimatedPrice, currency, distanceKm } =
     useBookingStore();
 
-  const category = VEHICLE_CATEGORIES.find((v) => v.id === route.params.vehicleId);
+  const category = useMemo(() => {
+    const oldCat = VEHICLE_CATEGORIES.find((v) => v.id === route.params.vehicleId);
+    if (oldCat) return oldCat;
+    for (const c of CARGO_TYPE_CATEGORIES) {
+      const found = c.vehicles.find((v) => v.id === route.params.vehicleId);
+      if (found) return { id: found.id, name: found.name, icon: found.icon, eta: found.eta, description: found.description };
+    }
+    return undefined;
+  }, [route.params.vehicleId]);
   const model = useMemo(
     () =>
       serviceModelId

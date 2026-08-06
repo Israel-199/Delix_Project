@@ -28,7 +28,7 @@ export const BASE_RATE_ETB_PER_KM = 150;
 
 export { RECENT_LOCATIONS } from './locations';
 export type { RecentLocation } from './locations';
-export { CARGO_CATEGORIES } from './cargo';
+export { CARGO_CATEGORIES, CARGO_TYPE_CATEGORIES } from './cargo';
 export type { CargoCategory, CargoCategoryId } from './cargo';
 export {
   SERVICE_MODELS,

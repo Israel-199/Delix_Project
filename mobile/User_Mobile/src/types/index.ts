@@ -1,4 +1,36 @@
-export type VehicleCategoryId = 'lada' | 'pickup' | 'mini_truck' | 'large_truck';
+export type VehicleCategoryId =
+  | 'lada'
+  | 'pickup'
+  | 'mini_van'
+  | 'large_pickup'
+  | '3_ton_truck'
+  | 'light_truck'
+  | '5_ton_truck'
+  | '10_ton_truck'
+  | 'trailer'
+  | 'container_truck'
+  | 'mini_truck'
+  | 'large_truck';
+
+export type CargoTypeKey = 'small' | 'medium' | 'large';
+
+export interface CargoVehicleOption {
+  id: VehicleCategoryId;
+  name: string;
+  icon: string;
+  eta: string;
+  description: string;
+  cargoType: CargoTypeKey;
+  capacity?: number;
+}
+
+export interface CargoTypeCategory {
+  id: CargoTypeKey;
+  title: string;
+  subtitle: string;
+  image: any;
+  vehicles: CargoVehicleOption[];
+}
 
 export type ServiceModelId = 'economy' | 'standard' | 'cargo_plus' | 'heavy_duty';
 

@@ -1,5 +1,6 @@
 export { DelixButton, type DelixButtonProps, type DelixButtonVariant } from './buttons/DelixButton';
 export { VehicleCard, type VehicleCardProps } from './cards/VehicleCard';
+export { CargoSquareCard, type CargoSquareCardProps } from './cards/CargoSquareCard';
 export { ServiceModelCard, type ServiceModelCardProps } from './cards/ServiceModelCard';
 export { RouteSummaryRow } from './cards/RouteSummaryRow';
 export { BottomSheet, InlineBottomSheet, type BottomSheetProps, type InlineBottomSheetProps } from './sheets/BottomSheet';

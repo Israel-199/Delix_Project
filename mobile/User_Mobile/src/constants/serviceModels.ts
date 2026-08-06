@@ -110,8 +110,40 @@ export const SERVICE_MODELS: ServiceModel[] = [
   },
 ];
 
-export const getServiceModelsForCategory = (categoryId: VehicleCategoryId): ServiceModel[] =>
-  SERVICE_MODELS.filter((m) => m.categoryId === categoryId);
+export const getServiceModelsForCategory = (categoryId: VehicleCategoryId): ServiceModel[] => {
+  const direct = SERVICE_MODELS.filter((m) => m.categoryId === categoryId);
+  if (direct.length > 0) return direct;
+
+  return [
+    {
+      id: 'economy',
+      name: 'Economy',
+      categoryId,
+      eta: '3 min',
+      capacity: 4,
+      description: 'Standard affordable option',
+      recommendedCargo: ['General cargo', 'Boxes'],
+    },
+    {
+      id: 'standard',
+      name: 'Standard',
+      categoryId,
+      eta: '4 min',
+      capacity: 6,
+      description: 'Reliable express option',
+      recommendedCargo: ['Commercial goods', 'Heavy items'],
+    },
+    {
+      id: 'cargo_plus',
+      name: 'Cargo Plus',
+      categoryId,
+      eta: '5 min',
+      capacity: 10,
+      description: 'Extra capacity option',
+      recommendedCargo: ['Bulk cargo', 'Equipment'],
+    },
+  ];
+};
 
 export const calculatePrice = (
   distanceKm: number,
@@ -136,5 +168,10 @@ export const getServiceModelKey = (categoryId: VehicleCategoryId, modelId: Servi
 export const findServiceModel = (
   categoryId: VehicleCategoryId,
   modelId: ServiceModel['id']
-): ServiceModel | undefined =>
-  SERVICE_MODELS.find((m) => m.categoryId === categoryId && m.id === modelId);
+): ServiceModel | undefined => {
+  const found = SERVICE_MODELS.find((m) => m.categoryId === categoryId && m.id === modelId);
+  if (found) return found;
+  const defaults = getServiceModelsForCategory(categoryId);
+  return defaults.find((m) => m.id === modelId) ?? defaults[0];
+};
+

@@ -8,7 +8,7 @@ import {
   ServiceModelCard,
 } from '../components';
 import { RouteSummaryRow } from '../components/cards/RouteSummaryRow';
-import { VEHICLE_CATEGORIES } from '../constants';
+import { CARGO_TYPE_CATEGORIES } from '../constants';
 import { getServiceModelsForCategory } from '../constants/serviceModels';
 import { DEFAULT_PICKUP_COORD } from '../constants/locationCoords';
 import { colors, radius, spacing } from '../design-system';
@@ -19,15 +19,15 @@ import { requestUserLocation, watchUserLocation } from '../services/locationServ
 import { fetchDrivingRoute } from '../services/routingService';
 import { onLiveDriverMoved } from '../services/socketService';
 import { useBookingStore } from '../store/bookingStore';
-import { MapMarkerData, NearbyDriver, ServiceModelId, VehicleCategoryId } from '../types';
+import { CargoTypeKey, MapMarkerData, NearbyDriver, ServiceModelId, VehicleCategoryId } from '../types';
 import { vehicleCategoryFromBackend } from '../utils/driverTracking';
 import { formatCurrencyLabel } from '../utils/mappers';
 import { anchorRouteStartToUser } from '../utils/routeUtils';
-import { heightScale } from '../utils/responsive';
+import { heightScale, moderateScale } from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MapBooking'>;
 
-const SHEET_HEIGHT = heightScale(812) * 0.42;
+const SHEET_HEIGHT = heightScale(812) * 0.46;
 
 const buildNearbyDrivers = (
   center: { latitude: number; longitude: number }
@@ -50,7 +50,9 @@ const MapBookingScreen = ({ navigation }: Props) => {
   const {
     pickupLocation,
     destination,
+    cargoTypeKey,
     vehicleCategoryId,
+    selectedVehicleId,
     serviceModelId,
     travelEta,
     arrivalTime,
@@ -58,7 +60,8 @@ const MapBookingScreen = ({ navigation }: Props) => {
     userCoordinate,
     routeCoordinates,
     nearbyDrivers,
-    setVehicleCategory,
+    setCargoTypeKey,
+    setSelectedVehicleId,
     setServiceModel,
     setRouteGeometry,
     setPickupLabel,
@@ -67,9 +70,23 @@ const MapBookingScreen = ({ navigation }: Props) => {
     estimateError,
   } = useBookingStore();
 
+  const activeCargoCategory = useMemo(
+    () => CARGO_TYPE_CATEGORIES.find((c) => c.id === cargoTypeKey) ?? CARGO_TYPE_CATEGORIES[0],
+    [cargoTypeKey]
+  );
+
+  // Sync active vehicle if none is selected yet
+  useEffect(() => {
+    if (!selectedVehicleId && activeCargoCategory.vehicles.length > 0) {
+      setSelectedVehicleId(activeCargoCategory.vehicles[0].id);
+    }
+  }, [activeCargoCategory, selectedVehicleId, setSelectedVehicleId]);
+
+  const activeVehicleId = selectedVehicleId ?? vehicleCategoryId;
+
   const serviceModels = useMemo(
-    () => getServiceModelsForCategory(vehicleCategoryId),
-    [vehicleCategoryId]
+    () => getServiceModelsForCategory(activeVehicleId),
+    [activeVehicleId]
   );
 
   const [priceMap, setPriceMap] = useState<Record<string, { price: number; currency: string }>>({});
@@ -189,7 +206,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
     }
 
     return () => { cancelled = true; };
-  }, [vehicleCategoryId, mapReady, mapError, fetchEstimatesForModels, serviceModels]);
+  }, [activeVehicleId, mapReady, mapError, fetchEstimatesForModels, serviceModels]);
 
   const displayRoute = useMemo(() => {
     if (!userCoordinate || routeCoordinates.length < 2) {
@@ -214,7 +231,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
         id: 'dest',
         coordinate: destinationCoordinate,
         type: 'destination',
-        vehicleCategory: vehicleCategoryId,
+        vehicleCategory: activeVehicleId,
         label: arrivalTime || travelEta,
       });
     }
@@ -237,19 +254,30 @@ const MapBookingScreen = ({ navigation }: Props) => {
     destinationCoordinate,
     nearbyDrivers,
     liveDrivers,
-    vehicleCategoryId,
+    activeVehicleId,
     arrivalTime,
     travelEta,
   ]);
 
-  const vehicleIcon = useCallback((categoryId: VehicleCategoryId) => {
-    const cat = VEHICLE_CATEGORIES.find((c) => c.id === categoryId);
-    return cat?.icon ?? '🚗';
+  const vehicleIcon = useCallback((catId: VehicleCategoryId) => {
+    for (const cat of CARGO_TYPE_CATEGORIES) {
+      const v = cat.vehicles.find((item) => item.id === catId);
+      if (v) return v.icon;
+    }
+    return '🚗';
   }, []);
+
+  const handleCargoCategorySelect = (key: CargoTypeKey) => {
+    setCargoTypeKey(key);
+    const cat = CARGO_TYPE_CATEGORIES.find((c) => c.id === key);
+    if (cat && cat.vehicles.length > 0) {
+      setSelectedVehicleId(cat.vehicles[0].id);
+    }
+  };
 
   const handleContinue = () => {
     if (!serviceModelId) return;
-    navigation.navigate('VehicleDetails', { vehicleId: vehicleCategoryId });
+    navigation.navigate('VehicleDetails', { vehicleId: activeVehicleId });
   };
 
   return (
@@ -274,7 +302,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
         )}
       </View>
 
-      <InlineBottomSheet contentStyle={styles.sheet} maxHeightRatio={0.42}>
+      <InlineBottomSheet contentStyle={styles.sheet} maxHeightRatio={0.46}>
         <RouteSummaryRow
           pickup={pickupLocation}
           destination={destination}
@@ -284,22 +312,47 @@ const MapBookingScreen = ({ navigation }: Props) => {
 
         {mapError ? <Text style={styles.error}>{mapError}</Text> : null}
 
+        {/* Cargo Category Tabs: Small Cargo, Medium Cargo, Large Cargo */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.categoryTabs}
           contentContainerStyle={styles.categoryTabsContent}
         >
-          {VEHICLE_CATEGORIES.map((cat) => {
-            const active = vehicleCategoryId === cat.id;
+          {CARGO_TYPE_CATEGORIES.map((cat) => {
+            const active = cargoTypeKey === cat.id;
             return (
               <Pressable
                 key={cat.id}
-                onPress={() => setVehicleCategory(cat.id)}
+                onPress={() => handleCargoCategorySelect(cat.id)}
                 style={[styles.categoryTab, active && styles.categoryTabActive]}
               >
                 <Text style={[styles.categoryTabText, active && styles.categoryTabTextActive]}>
-                  {cat.name}
+                  {cat.title}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {/* Vehicle Options row for active Cargo Category */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.vehicleSubRow}
+          contentContainerStyle={styles.vehicleSubRowContent}
+        >
+          {activeCargoCategory.vehicles.map((v) => {
+            const active = activeVehicleId === v.id;
+            return (
+              <Pressable
+                key={v.id}
+                onPress={() => setSelectedVehicleId(v.id as VehicleCategoryId)}
+                style={[styles.vehicleChip, active && styles.vehicleChipActive]}
+              >
+                <Text style={styles.vehicleChipIcon}>{v.icon}</Text>
+                <Text style={[styles.vehicleChipText, active && styles.vehicleChipTextActive]}>
+                  {v.name}
                 </Text>
               </Pressable>
             );
@@ -328,7 +381,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
                   key={`${model.categoryId}-${model.id}`}
                   model={model}
                   priceLabel={priceLabel}
-                  vehicleIcon={vehicleIcon(vehicleCategoryId)}
+                  vehicleIcon={vehicleIcon(activeVehicleId)}
                   selected={serviceModelId === model.id}
                   unavailable={!estimate && !loadingPrices}
                   onPress={() => setServiceModel(model.id)}
@@ -371,7 +424,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
   },
   sheet: { paddingTop: spacing.xs },
-  categoryTabs: { marginBottom: spacing.md, flexGrow: 0 },
+  categoryTabs: { marginBottom: spacing.xs, flexGrow: 0 },
   categoryTabsContent: { gap: spacing.xs },
   categoryTab: {
     paddingHorizontal: spacing.md,
@@ -394,8 +447,43 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     fontWeight: fontWeight.bold,
   },
+  vehicleSubRow: {
+    marginBottom: spacing.md,
+    flexGrow: 0,
+  },
+  vehicleSubRowContent: {
+    gap: spacing.xs,
+  },
+  vehicleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    marginRight: spacing.xs,
+  },
+  vehicleChipActive: {
+    backgroundColor: colors.primaryTint,
+    borderColor: colors.primary,
+  },
+  vehicleChipIcon: {
+    fontSize: moderateScale(16),
+    marginRight: spacing.xxs,
+  },
+  vehicleChipText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.semibold,
+  },
+  vehicleChipTextActive: {
+    color: colors.primaryDark,
+    fontWeight: fontWeight.bold,
+  },
   modelsSection: {
-    minHeight: heightScale(130),
+    minHeight: heightScale(125),
     marginBottom: spacing.sm,
   },
   modelsRow: {
