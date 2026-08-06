@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AppDrawer,
@@ -13,7 +13,7 @@ import {
 } from '../components';
 import { CARGO_TYPE_CATEGORIES, RECENT_LOCATIONS } from '../constants';
 import { colors, radius, spacing } from '../design-system';
-import { fontSize, fontWeight, textStyles, typography } from '../design-system/typography';
+import { fontFamilies, textStyles, typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { useBookingStore } from '../store/bookingStore';
 import { RecentLocation } from '../constants/locations';
@@ -38,14 +38,14 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
   const [vehicleSheetOpen, setVehicleSheetOpen] = useState(false);
   const [localPickup, setLocalPickup] = useState(pickupLocation);
 
-  const activeCategory =
-    CARGO_TYPE_CATEGORIES.find((c) => c.id === cargoTypeKey) ?? CARGO_TYPE_CATEGORIES[0];
+  const activeCategory = cargoTypeKey
+    ? CARGO_TYPE_CATEGORIES.find((c) => c.id === cargoTypeKey) ?? CARGO_TYPE_CATEGORIES[0]
+    : CARGO_TYPE_CATEGORIES[0];
 
   const handleCargoCardPress = (categoryKey: CargoTypeKey) => {
     setCargoTypeKey(categoryKey);
     const cat = CARGO_TYPE_CATEGORIES.find((c) => c.id === categoryKey);
     if (cat && cat.vehicles.length > 0) {
-      // Pre-select first vehicle of the category
       setSelectedVehicleId(cat.vehicles[0].id);
     }
     setVehicleSheetOpen(true);
@@ -183,7 +183,11 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
                 style={[styles.vehicleOptionCard, isSelected && styles.vehicleOptionSelected]}
                 onPress={() => setSelectedVehicleId(v.id as VehicleCategoryId)}
               >
-                <Text style={styles.vehicleIcon}>{v.icon}</Text>
+                {v.vehicleImage ? (
+                  <Image source={v.vehicleImage} style={styles.vehicleImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.vehicleIcon}>{v.icon}</Text>
+                )}
                 <View style={styles.vehicleInfo}>
                   <View style={styles.vehicleRowHeader}>
                     <Text style={[styles.vehicleName, isSelected && styles.vehicleNameSelected]}>
@@ -229,8 +233,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   sectionLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(12),
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -266,24 +270,25 @@ const styles = StyleSheet.create({
   recentTitle: { ...typography.addressTitle },
   recentSubtitle: { ...typography.addressSubtitle, marginTop: spacing.xxs },
   sheetContent: {
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
   },
   sheetHeader: {
     marginBottom: spacing.md,
   },
   sheetTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.extrabold,
+    fontFamily: fontFamilies.extrabold,
+    fontSize: moderateScale(18),
     color: colors.textPrimary,
   },
   sheetSubtitle: {
-    fontSize: fontSize.xs,
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(12),
     color: colors.textSecondary,
     marginTop: spacing.xxs,
   },
   vehicleList: {
-    maxHeight: moderateScale(280),
-    marginBottom: spacing.md,
+    maxHeight: moderateScale(290),
+    marginBottom: spacing.sm,
   },
   vehicleListContent: {
     gap: spacing.xs,
@@ -291,7 +296,7 @@ const styles = StyleSheet.create({
   vehicleOptionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
+    padding: spacing.sm,
     backgroundColor: colors.backgroundTertiary,
     borderRadius: radius.lg,
     borderWidth: 1.5,
@@ -301,9 +306,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryTint,
     borderColor: colors.primary,
   },
+  vehicleImage: {
+    width: moderateScale(48),
+    height: moderateScale(40),
+    marginRight: spacing.sm,
+  },
   vehicleIcon: {
     fontSize: moderateScale(28),
-    marginRight: spacing.md,
+    marginRight: spacing.sm,
   },
   vehicleInfo: {
     flex: 1,
@@ -314,20 +324,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   vehicleName: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(15),
     color: colors.textPrimary,
   },
   vehicleNameSelected: {
     color: colors.primaryDark,
   },
   vehicleEta: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamilies.semibold,
+    fontSize: moderateScale(12),
     color: colors.textSecondary,
   },
   vehicleDesc: {
-    fontSize: fontSize.xs,
+    fontFamily: fontFamilies.regular,
+    fontSize: moderateScale(12),
     color: colors.textSecondary,
     marginTop: spacing.xxs,
   },
@@ -339,7 +350,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: spacing.sm,
+    marginLeft: spacing.xs,
   },
   radioOuterSelected: {
     borderColor: colors.primary,

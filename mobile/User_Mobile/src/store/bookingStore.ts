@@ -20,7 +20,7 @@ interface BookingState {
   userCoordinate: LocationPoint | null;
   routeCoordinates: Array<{ latitude: number; longitude: number }>;
   nearbyDrivers: NearbyDriver[];
-  cargoTypeKey: CargoTypeKey;
+  cargoTypeKey: CargoTypeKey | null;
   vehicleCategoryId: VehicleCategoryId;
   selectedVehicleId: VehicleCategoryId | null;
   serviceModelId: ServiceModelId | null;
@@ -41,7 +41,7 @@ interface BookingState {
   estimateError: string | null;
   bookingStatus: 'idle' | 'searching' | 'driver_assigned' | 'in_transit' | 'completed';
 
-  setCargoTypeKey: (key: CargoTypeKey) => void;
+  setCargoTypeKey: (key: CargoTypeKey | null) => void;
   setSelectedVehicleId: (vehicleId: VehicleCategoryId) => void;
   setRoute: (
     pickup: string,
@@ -87,7 +87,7 @@ const initialState = {
   userCoordinate: null as LocationPoint | null,
   routeCoordinates: [] as Array<{ latitude: number; longitude: number }>,
   nearbyDrivers: [] as NearbyDriver[],
-  cargoTypeKey: 'small' as CargoTypeKey,
+  cargoTypeKey: null as CargoTypeKey | null,
   vehicleCategoryId: 'lada' as VehicleCategoryId,
   selectedVehicleId: null as VehicleCategoryId | null,
   serviceModelId: null as ServiceModelId | null,

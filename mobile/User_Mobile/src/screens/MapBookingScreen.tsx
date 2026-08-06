@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   DelixButton,
@@ -12,7 +12,7 @@ import { CARGO_TYPE_CATEGORIES } from '../constants';
 import { getServiceModelsForCategory } from '../constants/serviceModels';
 import { DEFAULT_PICKUP_COORD } from '../constants/locationCoords';
 import { colors, radius, spacing } from '../design-system';
-import { fontSize, fontWeight } from '../design-system/typography';
+import { fontFamilies } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { resolveDestination, reverseGeocode } from '../services/geocodingService';
 import { requestUserLocation, watchUserLocation } from '../services/locationService';
@@ -70,12 +70,13 @@ const MapBookingScreen = ({ navigation }: Props) => {
     estimateError,
   } = useBookingStore();
 
+  const activeCargoKey = cargoTypeKey ?? 'small';
+
   const activeCargoCategory = useMemo(
-    () => CARGO_TYPE_CATEGORIES.find((c) => c.id === cargoTypeKey) ?? CARGO_TYPE_CATEGORIES[0],
-    [cargoTypeKey]
+    () => CARGO_TYPE_CATEGORIES.find((c) => c.id === activeCargoKey) ?? CARGO_TYPE_CATEGORIES[0],
+    [activeCargoKey]
   );
 
-  // Sync active vehicle if none is selected yet
   useEffect(() => {
     if (!selectedVehicleId && activeCargoCategory.vehicles.length > 0) {
       setSelectedVehicleId(activeCargoCategory.vehicles[0].id);
@@ -320,7 +321,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
           contentContainerStyle={styles.categoryTabsContent}
         >
           {CARGO_TYPE_CATEGORIES.map((cat) => {
-            const active = cargoTypeKey === cat.id;
+            const active = activeCargoKey === cat.id;
             return (
               <Pressable
                 key={cat.id}
@@ -335,7 +336,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
           })}
         </ScrollView>
 
-        {/* Vehicle Options row for active Cargo Category */}
+        {/* Vehicle Options row for active Cargo Category with custom vehicle images */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -350,7 +351,11 @@ const MapBookingScreen = ({ navigation }: Props) => {
                 onPress={() => setSelectedVehicleId(v.id as VehicleCategoryId)}
                 style={[styles.vehicleChip, active && styles.vehicleChipActive]}
               >
-                <Text style={styles.vehicleChipIcon}>{v.icon}</Text>
+                {v.vehicleImage ? (
+                  <Image source={v.vehicleImage} style={styles.vehicleChipImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.vehicleChipIcon}>{v.icon}</Text>
+                )}
                 <Text style={[styles.vehicleChipText, active && styles.vehicleChipTextActive]}>
                   {v.name}
                 </Text>
@@ -419,9 +424,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   loadingText: {
-    fontSize: fontSize.sm,
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(14),
     color: colors.textSecondary,
-    fontWeight: fontWeight.medium,
   },
   sheet: { paddingTop: spacing.xs },
   categoryTabs: { marginBottom: spacing.xs, flexGrow: 0 },
@@ -439,13 +444,13 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   categoryTabText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamilies.semibold,
+    fontSize: moderateScale(14),
     color: colors.textSecondary,
   },
   categoryTabTextActive: {
+    fontFamily: fontFamilies.bold,
     color: colors.primaryDark,
-    fontWeight: fontWeight.bold,
   },
   vehicleSubRow: {
     marginBottom: spacing.md,
@@ -469,18 +474,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryTint,
     borderColor: colors.primary,
   },
+  vehicleChipImage: {
+    width: moderateScale(30),
+    height: moderateScale(22),
+    marginRight: spacing.xxs,
+  },
   vehicleChipIcon: {
     fontSize: moderateScale(16),
     marginRight: spacing.xxs,
   },
   vehicleChipText: {
-    fontSize: fontSize.xs,
+    fontFamily: fontFamilies.semibold,
+    fontSize: moderateScale(12),
     color: colors.textSecondary,
-    fontWeight: fontWeight.semibold,
   },
   vehicleChipTextActive: {
+    fontFamily: fontFamilies.bold,
     color: colors.primaryDark,
-    fontWeight: fontWeight.bold,
   },
   modelsSection: {
     minHeight: heightScale(125),
@@ -496,8 +506,9 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   error: {
+    fontFamily: fontFamilies.medium,
     color: colors.error,
-    fontSize: fontSize.sm,
+    fontSize: moderateScale(13),
     marginBottom: spacing.sm,
     textAlign: 'center',
   },

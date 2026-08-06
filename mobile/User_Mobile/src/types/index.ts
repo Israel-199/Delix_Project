@@ -18,6 +18,7 @@ export interface CargoVehicleOption {
   id: VehicleCategoryId;
   name: string;
   icon: string;
+  vehicleImage?: any;
   eta: string;
   description: string;
   cargoType: CargoTypeKey;

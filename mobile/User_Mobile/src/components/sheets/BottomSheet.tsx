@@ -45,12 +45,12 @@ export const BottomSheet = ({
         Animated.spring(translateY, {
           toValue: 0,
           useNativeDriver: true,
-          damping: 22,
-          stiffness: 220,
+          damping: 24,
+          stiffness: 240,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 1,
-          duration: 200,
+          duration: 180,
           useNativeDriver: true,
         }),
       ]).start();
@@ -62,21 +62,24 @@ export const BottomSheet = ({
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 8,
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 4,
       onPanResponderMove: (_, gesture) => {
         if (gesture.dy > 0) {
           translateY.setValue(gesture.dy);
+        } else {
+          translateY.setValue(gesture.dy * 0.2);
         }
       },
       onPanResponderRelease: (_, gesture) => {
-        if (gesture.dy > 80) {
+        if (gesture.dy > 60 || gesture.vy > 0.5) {
           onClose?.();
         } else {
           Animated.spring(translateY, {
             toValue: 0,
             useNativeDriver: true,
-            damping: 22,
-            stiffness: 220,
+            damping: 24,
+            stiffness: 240,
           }).start();
         }
       },
@@ -119,7 +122,7 @@ export const BottomSheet = ({
   );
 };
 
-/** Fixed-height inline sheet for map screens — no drag, prevents layout jitter. */
+/** Interactive inline sheet for map screens with drag gesture support and flush bottom positioning. */
 export interface InlineBottomSheetProps {
   children: ReactNode;
   showHandle?: boolean;
@@ -133,12 +136,41 @@ export const InlineBottomSheet = ({
   showHandle = true,
   style,
   contentStyle,
-  maxHeightRatio = 0.42,
+  maxHeightRatio = 0.46,
 }: InlineBottomSheetProps) => {
   const maxHeight = heightScale(812) * maxHeightRatio;
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 4,
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dy > 0) {
+          translateY.setValue(gesture.dy);
+        } else {
+          translateY.setValue(gesture.dy * 0.15);
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 24,
+          stiffness: 240,
+        }).start();
+      },
+    })
+  ).current;
 
   return (
-    <View style={[styles.inlineSheet, { maxHeight }, style]}>
+    <Animated.View
+      style={[
+        styles.inlineSheet,
+        { maxHeight, transform: [{ translateY }] },
+        style,
+      ]}
+      {...panResponder.panHandlers}
+    >
       {showHandle && <View style={styles.handle} />}
       <ScrollView
         style={styles.inlineScroll}
@@ -150,7 +182,7 @@ export const InlineBottomSheet = ({
       >
         {children}
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 };
 
@@ -158,6 +190,7 @@ const styles = StyleSheet.create({
   modalRoot: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'transparent',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -168,6 +201,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
     ...shadows.sheet,
+    paddingBottom: spacing.xl,
+    marginBottom: 0,
   },
   inlineSheet: {
     backgroundColor: colors.background,
@@ -175,6 +210,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius['2xl'],
     ...shadows.sheet,
     width: '100%',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: spacing.lg,
   },
   inlineScroll: {
     flexGrow: 0,
@@ -190,8 +230,8 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl,
-    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    paddingTop: spacing.xs,
   },
 });
 

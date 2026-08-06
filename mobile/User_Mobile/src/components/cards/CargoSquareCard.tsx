@@ -10,7 +10,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { colors, radius, shadows, spacing } from '../../design-system';
-import { fontSize, fontWeight } from '../../design-system/typography';
+import { fontFamilies } from '../../theme/typography';
 import { moderateScale } from '../../utils/responsive';
 
 export interface CargoSquareCardProps {
@@ -84,8 +84,8 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   title: {
+    fontFamily: fontFamilies.bold,
     fontSize: moderateScale(11),
-    fontWeight: fontWeight.bold,
     color: colors.textPrimary,
     textAlign: 'center',
     letterSpacing: 0.2,
