@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DelixButton, ScreenContainer } from '../components';
 import { colors, radius, spacing } from '../design-system';
-import { fontSize, fontWeight, textStyles } from '../design-system/typography';
+import { fontFamilies } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { ApiError } from '../services/apiClient';
 import { useAuthStore } from '../store/authStore';
@@ -82,12 +82,13 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
 
   return (
     <ScreenContainer avoidKeyboard contentStyle={styles.content}>
-      <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-        <Text style={styles.backText}>←</Text>
-      </Pressable>
+      <View style={styles.topSection}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
+          <Text style={styles.backText}>←</Text>
+        </Pressable>
 
-      <Text style={styles.title}>Verify Your Number</Text>
-      <Text style={styles.subtitle}>Code sent to +251 {phone.replace(/\s/g, '').replace(/^0/, '')}</Text>
+        <Text style={styles.title}>Verify Your Number</Text>
+        <Text style={styles.subtitle}>Code sent to +251 {phone.replace(/\s/g, '').replace(/^0/, '')}</Text>
 
       <View style={styles.otpRow}>
         {digits.map((digit, index) => (
@@ -114,9 +115,18 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
         style={styles.button}
       />
 
-      <Pressable onPress={handleResend} disabled={resending}>
-        <Text style={styles.resend}>{resending ? 'Sending...' : 'Resend Code'}</Text>
-      </Pressable>
+        <Pressable onPress={handleResend} disabled={resending}>
+          <Text style={styles.resend}>{resending ? 'Sending...' : 'Resend Code'}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.bottomSection}>
+        <Image 
+          source={require('../../assets/images/welcome_logo.png')} 
+          style={styles.bottomLogo} 
+          resizeMode="contain" 
+        />
+      </View>
     </ScreenContainer>
   );
 };
@@ -124,24 +134,33 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    paddingTop: spacing.lg,
+    paddingTop: spacing['2xl'],
+    justifyContent: 'space-between',
+  },
+  topSection: {
+    flex: 1,
   },
   back: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing["5xl"],
   },
   backText: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.black,
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(22),
     color: colors.textPrimary,
   },
   title: {
-    ...textStyles.sectionTitle,
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(22),
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
+    textAlign:"center",
   },
   subtitle: {
-    fontSize: fontSize.md,
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(14),
     color: colors.textSecondary,
     marginBottom: spacing['2xl'],
+    textAlign:"center",
   },
   otpRow: {
     flexDirection: 'row',
@@ -156,8 +175,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.backgroundTertiary,
     textAlign: 'center',
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.extrabold,
+    fontSize: moderateScale(22),
+    fontFamily: fontFamilies.extrabold,
     color: colors.textPrimary,
   },
   otpBoxError: {
@@ -166,7 +185,7 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.error,
-    fontSize: fontSize.sm,
+    fontSize: moderateScale(13),
     marginBottom: spacing.sm,
   },
   button: {
@@ -175,9 +194,17 @@ const styles = StyleSheet.create({
   resend: {
     marginTop: spacing.xl,
     textAlign: 'center',
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontSize: moderateScale(14),
+    fontFamily: fontFamilies.semibold,
     color: colors.primary,
+  },
+  bottomSection: {
+    alignItems: 'center',
+    marginBottom: spacing['5xl'],
+  },
+  bottomLogo: {
+    width: moderateScale(175),
+    height: moderateScale(175),
   },
 });
 

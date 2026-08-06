@@ -117,10 +117,11 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
     <>
       <ScreenContainer scrollable contentStyle={styles.homeContent}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.brandTitle}>DELIX</Text>
-            <Text style={styles.locationSubtitle}>Your location ›</Text>
-          </View>
+          <Image 
+            source={require('../../assets/images/home_logo.png')} 
+            style={styles.homeLogo} 
+            resizeMode="contain" 
+          />
           <Pressable
             accessibilityRole="button"
             hitSlop={8}
@@ -217,28 +218,35 @@ const CustomerHomeScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  homeContent: { paddingHorizontal: 0 },
+  homeContent: { 
+    paddingHorizontal: 0,
+    flexGrow: 1, 
+    justifyContent: 'space-between',
+    
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
-  brandTitle: { ...textStyles.brand },
-  locationSubtitle: { ...typography.locationLabel },
+  homeLogo: {
+    width: moderateScale(110),
+    height: moderateScale(110),
+  },
   menuIcon: { fontSize: moderateScale(24) },
   cargoGridContainer: {
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
   },
   sectionLabel: {
     fontFamily: fontFamilies.bold,
-    fontSize: moderateScale(12),
-    color: colors.textSecondary,
+    fontSize: moderateScale(16),
+    color: colors.textPrimary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
+    textAlign: 'center',
   },
   cargoGrid: {
     flexDirection: 'row',

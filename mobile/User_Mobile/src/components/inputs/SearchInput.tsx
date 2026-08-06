@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radius, spacing } from '../../design-system';
 import { fontFamilies, typography } from '../../theme/typography';
-import { heightScale } from '../../utils/responsive';
+import { heightScale, moderateScale } from '../../utils/responsive';
 import DelixInput, { DelixInputProps } from './DelixInput';
 
 export interface SearchInputProps extends Omit<DelixInputProps, 'leadingIcon' | 'trailingIcon'> {
@@ -112,8 +112,10 @@ const styles = StyleSheet.create({
   homePlaceholder: {
     flex: 1,
     marginLeft: spacing.sm,
-    ...typography.whereTo,
-    color: colors.textPlaceholder,
+    fontFamily: fontFamilies.semibold,
+    fontSize: moderateScale(15),
+    color: colors.textPrimary,
+    textAlign: 'center',
   },
   homeArrow: {
     ...typography.title,
@@ -122,8 +124,10 @@ const styles = StyleSheet.create({
   homeInputText: {
     flex: 1,
     marginLeft: spacing.sm,
-    ...typography.whereTo,
+    fontFamily: fontFamilies.semibold,
+    fontSize: moderateScale(15),
     color: colors.textPrimary,
+    textAlign: 'center',
     paddingVertical: 0,
   },
 });

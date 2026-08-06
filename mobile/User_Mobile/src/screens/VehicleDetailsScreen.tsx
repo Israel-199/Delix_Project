@@ -156,11 +156,13 @@ const VehicleDetailsScreen = ({ navigation, route }: Props) => {
                 variant="secondary"
                 onPress={() => setInstructionsModalOpen(false)}
                 style={styles.cancelBtn}
+                textStyle={styles.btnText}
               />
               <DelixButton
                 title="Send Instruction"
                 onPress={handleSaveInstructions}
                 style={styles.saveBtn}
+                textStyle={styles.btnText}
               />
             </View>
           </View>
@@ -324,6 +326,8 @@ const styles = StyleSheet.create({
   modalInput: {
     minHeight: moderateScale(100),
     textAlignVertical: 'top',
+    fontFamily: fontFamilies.regular,
+    fontSize: moderateScale(13),
   },
   modalButtons: {
     flexDirection: 'row',
@@ -332,6 +336,9 @@ const styles = StyleSheet.create({
   },
   cancelBtn: { flex: 1 },
   saveBtn: { flex: 1.5 },
+  btnText: {
+    fontSize: moderateScale(12),
+  },
 });
 
 export default VehicleDetailsScreen;

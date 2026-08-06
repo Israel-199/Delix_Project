@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DelixButton, PhoneInput, ScreenContainer, validateEthiopianPhone } from '../components';
 import { colors, spacing } from '../design-system';
@@ -41,7 +41,13 @@ const LoginScreen = ({ navigation }: Props) => {
 
   return (
     <ScreenContainer avoidKeyboard contentStyle={styles.content}>
-      <Text style={styles.brand}>DELIX</Text>
+      <View style={styles.brandContainer}>
+        <Image 
+          source={require('../../assets/images/welcome_logo.png')} 
+          style={styles.brandImage} 
+          resizeMode="contain" 
+        />
+      </View>
       <Text style={styles.title}>Welcome to Delix</Text>
       <Text style={styles.subtitle}>Enter your phone number to continue</Text>
 
@@ -62,6 +68,8 @@ const LoginScreen = ({ navigation }: Props) => {
         />
       </View>
 
+      <View style={styles.spacer} />
+
       <Text style={styles.footer}>
         By continuing, you agree to our <Text style={{color:colors.primary}}>Terms of Service</Text> and <Text style={{color:colors.primary}}>Privacy Policy</Text>
       </Text>
@@ -72,13 +80,16 @@ const LoginScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    justifyContent: 'center',
     paddingTop: spacing['3xl'],
   },
-  brand: {
-    ...textStyles.brand,
+  brandContainer: {
+    alignItems: 'center',
     marginBottom: spacing['2xl'],
-      textAlign:"center",
+    marginTop: spacing.xl,
+  },
+  brandImage: {
+    width: 190,
+    height: 190,
   },
   title: {
     ...textStyles.sectionTitle,
@@ -97,9 +108,12 @@ const styles = StyleSheet.create({
   button: {
     marginTop: spacing.lg,
   },
+  spacer: {
+    flex: 1,
+  },
   footer: {
-    marginTop: spacing['5xl'],
-    lineHeight:20,
+    marginBottom: spacing.xl,
+    lineHeight: 20,
     ...typography.small,
     color: colors.textPlaceholder,
     textAlign: 'center',
