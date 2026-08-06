@@ -1,4 +1,5 @@
 import { LocationPoint } from '../types';
+import { anchorRouteToEndpoints } from '../utils/routeUtils';
 
 export interface RouteResult {
   coordinates: Array<{ latitude: number; longitude: number }>;
@@ -97,27 +98,40 @@ export const fetchDrivingRoute = async (
   from: LocationPoint,
   to: LocationPoint
 ): Promise<RouteResult> => {
+  const fromExact = { latitude: from.latitude, longitude: from.longitude };
+  const toExact = { latitude: to.latitude, longitude: to.longitude };
+
   try {
     const direct = await requestOsrmRoute(from, to);
-    if (direct) return direct;
+    if (direct) {
+      return {
+        ...direct,
+        coordinates: anchorRouteToEndpoints(direct.coordinates, fromExact, toExact),
+      };
+    }
 
     const snappedFrom = await snapToRoad(from);
     const snappedTo = await snapToRoad(to);
     const snapped = await requestOsrmRoute(snappedFrom, snappedTo);
-    if (snapped) return snapped;
+    if (snapped) {
+      return {
+        ...snapped,
+        coordinates: anchorRouteToEndpoints(snapped.coordinates, fromExact, toExact),
+      };
+    }
   } catch {
     // fall through to estimate
   }
 
-  const latDiff = to.latitude - from.latitude;
-  const lngDiff = to.longitude - from.longitude;
+  const latDiff = toExact.latitude - fromExact.latitude;
+  const lngDiff = toExact.longitude - fromExact.longitude;
   const distanceKm =
     Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111;
   const durationSeconds = Math.max(60, Math.round((distanceKm / 25) * 3600));
   const arrivalTime = formatArrivalTime(durationSeconds);
 
   return {
-    coordinates: [from, to],
+    coordinates: anchorRouteToEndpoints([fromExact, toExact], fromExact, toExact),
     distanceKm: Math.round(distanceKm * 10) / 10,
     durationSeconds,
     durationLabel: formatDuration(durationSeconds),

@@ -21,11 +21,8 @@ export const MapMarkerPin = ({ marker }: MapMarkerPinProps) => {
 
   if (type === 'user') {
     return (
-      <View style={styles.userWrap}>
-        <View style={styles.userPulse} />
-        <View style={styles.userDot}>
-          <View style={styles.userDotInner} />
-        </View>
+      <View style={styles.userWrap} collapsable={false}>
+        <View style={styles.userDot} />
       </View>
     );
   }
@@ -33,7 +30,12 @@ export const MapMarkerPin = ({ marker }: MapMarkerPinProps) => {
   if (type === 'driver') {
     const icon = DRIVER_ICONS[marker.vehicleCategory ?? 'pickup'];
     return (
-      <View style={styles.driverWrap}>
+      <View style={styles.driverWrap} collapsable={false}>
+        {marker.label ? (
+          <View style={styles.driverEtaBadge}>
+            <Text style={styles.driverEtaText}>{marker.label}</Text>
+          </View>
+        ) : null}
         <View style={styles.driverBubble}>
           <Text style={styles.driverIcon}>{icon}</Text>
         </View>
@@ -42,22 +44,24 @@ export const MapMarkerPin = ({ marker }: MapMarkerPinProps) => {
   }
 
   if (type === 'destination') {
+    const vehicleIcon = DRIVER_ICONS[marker.vehicleCategory ?? 'pickup'];
     return (
-      <View style={styles.destWrap}>
+      <View style={styles.destWrap} collapsable={false}>
         {marker.label ? (
           <View style={styles.destTimeBadge}>
             <Text style={styles.destTimeText}>{marker.label}</Text>
           </View>
         ) : null}
-        <View style={styles.destPin}>
-          <View style={styles.destPinInner} />
+        <View style={styles.destVehicleBubble}>
+          <Text style={styles.destVehicleIcon}>{vehicleIcon}</Text>
         </View>
+        <Text style={styles.destLabel}>Dropoff</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.pickupWrap}>
+    <View style={styles.pickupWrap} collapsable={false}>
       <View style={styles.pickupPin}>
         <View style={styles.pickupDot} />
       </View>
@@ -71,32 +75,35 @@ export const MapMarkerPin = ({ marker }: MapMarkerPinProps) => {
 };
 
 const styles = StyleSheet.create({
-  userWrap: { alignItems: 'center', justifyContent: 'center', width: moderateScale(44), height: moderateScale(44) },
-  userPulse: {
-    position: 'absolute',
-    width: moderateScale(44),
-    height: moderateScale(44),
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+  userWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: moderateScale(24),
+    height: moderateScale(24),
   },
   userDot: {
-    width: moderateScale(22),
-    height: moderateScale(22),
+    width: moderateScale(18),
+    height: moderateScale(18),
     borderRadius: radius.full,
     backgroundColor: colors.info,
     borderWidth: 3,
     borderColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
     ...shadows.sm,
   },
-  userDotInner: {
-    width: moderateScale(6),
-    height: moderateScale(6),
-    borderRadius: radius.full,
-    backgroundColor: colors.background,
-  },
   driverWrap: { alignItems: 'center' },
+  driverEtaBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: radius.sm,
+    marginBottom: spacing.xxs,
+    ...shadows.sm,
+  },
+  driverEtaText: {
+    color: colors.textOnPrimary,
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.xs,
+  },
   driverBubble: {
     width: moderateScale(40),
     height: moderateScale(40),
@@ -123,22 +130,28 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     fontSize: fontSize.sm,
   },
-  destPin: {
-    width: moderateScale(20),
-    height: moderateScale(20),
+  destVehicleBubble: {
+    width: moderateScale(52),
+    height: moderateScale(52),
     borderRadius: radius.full,
-    backgroundColor: colors.success,
+    backgroundColor: colors.background,
     borderWidth: 3,
-    borderColor: colors.background,
+    borderColor: colors.success,
     justifyContent: 'center',
     alignItems: 'center',
     ...shadows.sm,
   },
-  destPinInner: {
-    width: moderateScale(6),
-    height: moderateScale(6),
-    borderRadius: radius.full,
+  destVehicleIcon: {
+    fontSize: moderateScale(28),
+  },
+  destLabel: {
+    marginTop: spacing.xxs,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.success,
     backgroundColor: colors.background,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radius.sm,
   },
   pickupWrap: { alignItems: 'center' },
   pickupPin: {

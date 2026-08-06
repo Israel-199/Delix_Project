@@ -44,14 +44,15 @@ interface BookingState {
     options?: { destinationCoordinate?: LocationPoint | null }
   ) => void;
   setPickupLabel: (pickup: string) => void;
+  setUserCoordinate: (coordinate: LocationPoint) => void;
   setRouteGeometry: (payload: {
-    pickupCoordinate: LocationPoint | null;
-    destinationCoordinate: LocationPoint | null;
+    pickupCoordinate?: LocationPoint | null;
+    destinationCoordinate?: LocationPoint | null;
     userCoordinate?: LocationPoint | null;
-    routeCoordinates: Array<{ latitude: number; longitude: number }>;
-    distanceKm: number;
-    travelEta: string;
-    arrivalLabel: string;
+    routeCoordinates?: Array<{ latitude: number; longitude: number }>;
+    distanceKm?: number;
+    travelEta?: string;
+    arrivalLabel?: string;
     arrivalTime?: string;
     nearbyDrivers?: NearbyDriver[];
   }) => void;
@@ -119,7 +120,10 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
   setPickupLabel: (pickup) => set({ pickupLocation: pickup }),
 
-  setRouteGeometry: (payload) => set(payload),
+  setUserCoordinate: (coordinate) =>
+    set({ userCoordinate: coordinate, pickupCoordinate: coordinate }),
+
+  setRouteGeometry: (payload) => set((state) => ({ ...state, ...payload })),
 
   setVehicleCategory: (id) =>
     set({ vehicleCategoryId: id, serviceModelId: null, estimateError: null }),

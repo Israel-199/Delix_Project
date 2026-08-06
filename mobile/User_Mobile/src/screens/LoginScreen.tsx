@@ -63,7 +63,7 @@ const LoginScreen = ({ navigation }: Props) => {
       </View>
 
       <Text style={styles.footer}>
-        By continuing, you agree to Delix Terms & Privacy Policy
+        By continuing, you agree to our <Text style={{color:colors.primary}}>Terms of Service</Text> and <Text style={{color:colors.primary}}>Privacy Policy</Text>
       </Text>
     </ScreenContainer>
   );
@@ -78,24 +78,28 @@ const styles = StyleSheet.create({
   brand: {
     ...textStyles.brand,
     marginBottom: spacing['2xl'],
+      textAlign:"center",
   },
   title: {
     ...textStyles.sectionTitle,
     marginBottom: spacing.xs,
+    textAlign:"center",
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
-    marginBottom: spacing['2xl'],
+    marginBottom: spacing['3xl'],
+    textAlign:"center",
   },
   form: {
     gap: spacing.lg,
   },
   button: {
-    marginTop: spacing.sm,
+    marginTop: spacing.lg,
   },
   footer: {
-    marginTop: spacing['3xl'],
+    marginTop: spacing['5xl'],
+    lineHeight:20,
     ...typography.small,
     color: colors.textPlaceholder,
     textAlign: 'center',

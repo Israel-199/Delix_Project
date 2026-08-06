@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -11,18 +11,37 @@ import {
   Linking
 } from 'react-native';
 import io from 'socket.io-client';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Polyline } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { widthScale, heightScale, moderateScale, SIZES } from '../utils/responsive';
+import DriverMapMarker from '../components/DriverMapMarker';
+import {
+  fetchRoute,
+  orderDestination,
+  orderPickup,
+  vehicleIcon,
+  LatLng,
+} from '../utils/mapUtils';
 
-// Standard Android generic local IP mapping to host port 5000 
-const SOCKET_URL = 'http://10.0.2.2:5000'; 
+import { SOCKET_URL } from '../config/api';
+
 const socket = io(SOCKET_URL);
+const DRIVER_ID = 'DVR-90812';
+const DRIVER_VEHICLE = 'MINI_TRUCK';
 
 const DriverHomeScreen = () => {
+  const mapRef = useRef<MapView>(null);
+  const didFitMap = useRef(false);
   const [isOnline, setIsOnline] = useState(true);
   const [activeStep, setActiveStep] = useState<'idle' | 'incoming_request' | 'accepted' | 'in_transit' | 'completed'>('idle');
   const [completedTrips, setCompletedTrips] = useState(6);
-  const [currentOrder, setCurrentOrder] = useState<any>(null);
+  const [currentOrder, setCurrentOrder] = useState<Record<string, unknown> | null>(null);
+  const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
+  const [driverCoord, setDriverCoord] = useState<LatLng>({ latitude: 9.0205, longitude: 38.7469 });
+
+  const pickupCoord = useMemo(() => orderPickup(currentOrder), [currentOrder]);
+  const destCoord = useMemo(() => orderDestination(currentOrder), [currentOrder]);
+  const orderVehicle = (currentOrder?.vehicleRequested as string) ?? DRIVER_VEHICLE;
 
   useEffect(() => {
     socket.on('incoming_delivery_alert', (orderData) => {
@@ -37,23 +56,101 @@ const DriverHomeScreen = () => {
     };
   }, [isOnline, activeStep]);
 
+  useEffect(() => {
+    if (activeStep !== 'accepted' && activeStep !== 'in_transit') return;
+
+    let stopWatch: (() => void) | undefined;
+    let cancelled = false;
+
+    const startTracking = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted' || cancelled) return;
+
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 2500,
+          distanceInterval: 5,
+        },
+        (position) => {
+          const next = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          setDriverCoord(next);
+          socket.emit('driver_location_update', {
+            driverId: DRIVER_ID,
+            lat: next.latitude,
+            lng: next.longitude,
+            vehicleType: orderVehicle,
+          });
+        }
+      );
+
+      stopWatch = () => subscription.remove();
+    };
+
+    startTracking();
+
+    return () => {
+      cancelled = true;
+      stopWatch?.();
+    };
+  }, [activeStep, orderVehicle]);
+
+  useEffect(() => {
+    if (activeStep !== 'accepted' && activeStep !== 'in_transit') return;
+
+    let cancelled = false;
+
+    const loadRoute = async () => {
+      const from = activeStep === 'in_transit' ? pickupCoord : driverCoord;
+      const to = activeStep === 'in_transit' ? destCoord : pickupCoord;
+      const coords = await fetchRoute(from, to);
+      if (!cancelled) {
+        setRouteCoords(coords);
+        if (!didFitMap.current) {
+          didFitMap.current = true;
+          mapRef.current?.fitToCoordinates(
+            [pickupCoord, destCoord, driverCoord],
+            {
+              edgePadding: { top: 80, right: 48, bottom: 280, left: 48 },
+              animated: true,
+            }
+          );
+        }
+      }
+    };
+
+    loadRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeStep, pickupCoord.latitude, pickupCoord.longitude, destCoord.latitude, destCoord.longitude]);
+
+  useEffect(() => {
+    didFitMap.current = false;
+  }, [activeStep]);
+
   const handleCallUser = () => {
     Linking.openURL('tel:+251911223344');
   };
 
   const handleAcceptOrder = () => {
     setActiveStep('accepted');
-    if (currentOrder?.id) {
+    const orderId = (currentOrder?.orderId ?? currentOrder?.id) as string | undefined;
+    if (orderId) {
       socket.emit('accept_delivery_order', {
-        orderId: currentOrder.id,
-        driverId: 'DVR-90812'
+        orderId,
+        driverId: DRIVER_ID,
       });
-      
+
       socket.emit('driver_location_update', {
-        driverId: 'DVR-90812',
-        lat: 9.0205,
-        lng: 38.7469,
-        vehicleType: 'MINI_TRUCK'
+        driverId: DRIVER_ID,
+        lat: driverCoord.latitude,
+        lng: driverCoord.longitude,
+        vehicleType: orderVehicle,
       });
     }
   };
@@ -79,26 +176,48 @@ const DriverHomeScreen = () => {
       {/* Expo Maps Native UI Rendering when Active */}
       {(activeStep === 'accepted' || activeStep === 'in_transit') && (
         <View style={styles.mapBackground}>
-          <MapView 
-            style={{flex: 1}}
+          <MapView
+            ref={mapRef}
+            style={{ flex: 1 }}
             initialRegion={{
-              latitude: 9.0205,
-              longitude: 38.7469,
-              latitudeDelta: 0.05,
-              longitudeDelta: 0.05,
+              latitude: pickupCoord.latitude,
+              longitude: pickupCoord.longitude,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
             }}
+            mapPadding={{ top: 60, right: 16, bottom: 260, left: 16 }}
           >
-            {/* Dynamic Driver Pin Layer */}
-            <Marker coordinate={{ latitude: 9.0205, longitude: 38.7469 }}>
-              <View style={styles.movingCar}><Text style={{fontSize: moderateScale(24)}}>🚚</Text></View>
-            </Marker>
-            
-            {/* Customer Pickup / Dropoff Pin */}
-            <Marker coordinate={{ latitude: 9.0305, longitude: 38.7569 }}>
-              <View style={styles.mapPin}>
-                <Text style={{fontSize: moderateScale(24)}}>{activeStep === 'in_transit' ? '🏁' : '📍'}</Text>
-              </View>
-            </Marker>
+            {routeCoords.length > 1 && (
+              <Polyline
+                coordinates={routeCoords}
+                strokeColor="#22C55E"
+                strokeWidth={5}
+                lineCap="round"
+                lineJoin="round"
+              />
+            )}
+
+            <DriverMapMarker
+              id="pickup"
+              coordinate={pickupCoord}
+              type="user"
+            />
+
+            <DriverMapMarker
+              id="destination"
+              coordinate={destCoord}
+              type="destination"
+              vehicleType={orderVehicle}
+              label={activeStep === 'in_transit' ? 'Dropoff' : undefined}
+            />
+
+            <DriverMapMarker
+              id="driver"
+              coordinate={driverCoord}
+              type="driver"
+              vehicleType={orderVehicle}
+              label="You"
+            />
           </MapView>
         </View>
       )}
@@ -163,6 +282,9 @@ const DriverHomeScreen = () => {
 
           <View style={styles.customerBox}>
             <Text style={styles.customerName}>Abebe Bikila</Text>
+            <Text style={styles.routePreview}>
+              {vehicleIcon(orderVehicle)} {String(currentOrder?.destinationAddress ?? 'Destination')}
+            </Text>
             <TouchableOpacity style={styles.callRingButton} onPress={handleCallUser}>
               <Text style={{fontSize: moderateScale(18)}}>📞 Call Passenger</Text>
             </TouchableOpacity>
@@ -251,17 +373,27 @@ const styles = StyleSheet.create({
 
   // Map Views
   mapBackground: { flex: 1, backgroundColor: '#E5E5E0', position: 'relative' },
-  mapPin: { position: 'absolute' },
-  movingCar: { width: moderateScale(50), height: moderateScale(50), borderRadius: moderateScale(25), backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2 },
 
   // Interactive Bottom Sheets
   bottomSheet: { backgroundColor: 'white', position: 'absolute', bottom: 0, width: '100%', padding: moderateScale(24), borderTopLeftRadius: moderateScale(24), borderTopRightRadius: moderateScale(24), shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 15 },
   statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: heightScale(20) },
   activeTitle: { fontSize: moderateScale(22), fontWeight: '900', color: '#1F2937' },
   etaActive: { backgroundColor: '#10B981', color: '#FFF', fontWeight: '800', paddingHorizontal: widthScale(12), paddingVertical: heightScale(6), borderRadius: moderateScale(12) },
-  customerBox: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', padding: moderateScale(15), borderRadius: moderateScale(16), marginBottom: heightScale(20) },
+  customerBox: {
+    backgroundColor: '#F9FAFB',
+    padding: moderateScale(15),
+    borderRadius: moderateScale(16),
+    marginBottom: heightScale(20),
+  },
   customerName: { fontSize: moderateScale(18), fontWeight: '800' },
-  callRingButton: { backgroundColor: '#2563EB', paddingHorizontal: widthScale(16), paddingVertical: heightScale(10), borderRadius: moderateScale(12) },
+  routePreview: {
+    fontSize: moderateScale(13),
+    color: '#6B7280',
+    marginTop: heightScale(4),
+    marginBottom: heightScale(8),
+    fontWeight: '600',
+  },
+  callRingButton: { backgroundColor: '#2563EB', paddingHorizontal: widthScale(16), paddingVertical: heightScale(10), borderRadius: moderateScale(12), alignSelf: 'flex-start' },
   workflowButton: { backgroundColor: '#FF5722', padding: moderateScale(18), borderRadius: moderateScale(16), alignItems: 'center' },
   workflowButtonText: { color: '#FFF', fontWeight: '900', fontSize: moderateScale(16) },
   destinationBox: { backgroundColor: '#F9FAFB', padding: moderateScale(15), borderRadius: moderateScale(16), marginBottom: heightScale(20) },

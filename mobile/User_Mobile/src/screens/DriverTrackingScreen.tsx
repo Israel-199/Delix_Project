@@ -1,22 +1,33 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DelixButton, InlineBottomSheet, MapContainer } from '../components';
 import { VEHICLE_CATEGORIES } from '../constants';
+import { DEFAULT_PICKUP_COORD } from '../constants/locationCoords';
 import { findServiceModel } from '../constants/serviceModels';
 import { colors, spacing } from '../design-system';
 import { fontSize, fontWeight } from '../design-system/typography';
 import { RootStackParamList } from '../navigation/types';
-import { onOrderStatusChanged } from '../services/socketService';
+import { watchUserLocation } from '../services/locationService';
+import { onLiveDriverMoved, onOrderStatusChanged } from '../services/socketService';
 import { useBookingStore } from '../store/bookingStore';
-import { MapMarkerData } from '../types';
+import { MapMarkerData, VehicleCategoryId } from '../types';
+import { vehicleCategoryFromBackend } from '../utils/driverTracking';
 import { heightScale, moderateScale, widthScale } from '../utils/responsive';
+import { anchorRouteStartToUser } from '../utils/routeUtils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DriverTracking'>;
 
-const PICKUP_COORD = { latitude: 9.0205, longitude: 38.7469 };
-const DEST_COORD = { latitude: 9.0305, longitude: 38.7669 };
-const DRIVER_COORD = { latitude: 9.0225, longitude: 38.7509 };
+const SHEET_HEIGHT = heightScale(812) * 0.38;
+
+const offsetCoordinate = (
+  base: { latitude: number; longitude: number },
+  dLat: number,
+  dLng: number
+) => ({
+  latitude: base.latitude + dLat,
+  longitude: base.longitude + dLng,
+});
 
 const DriverTrackingScreen = ({ navigation, route }: Props) => {
   const { orderId } = route.params;
@@ -25,7 +36,15 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
     vehicleCategoryId,
     serviceModelId,
     pickupLocation,
+    destination,
+    userCoordinate,
+    pickupCoordinate,
+    destinationCoordinate,
+    routeCoordinates,
+    arrivalTime,
+    travelEta,
     setBookingStatus,
+    setUserCoordinate,
   } = useBookingStore();
 
   const category = VEHICLE_CATEGORIES.find((v) => v.id === vehicleCategoryId);
@@ -36,13 +55,31 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
   const isSearching = bookingStatus === 'searching';
   const isAssigned = bookingStatus === 'driver_assigned' || bookingStatus === 'in_transit';
 
-  const mapMarkers: MapMarkerData[] = [
-    { id: 'pickup', coordinate: PICKUP_COORD, label: '3 min', type: 'pickup' },
-    { id: 'dest', coordinate: DEST_COORD, label: 'Arrive 10:34 AM', type: 'destination' },
-    ...(isAssigned
-      ? [{ id: 'driver', coordinate: DRIVER_COORD, label: '2 min', type: 'driver' as const }]
-      : []),
-  ];
+  const userPoint = userCoordinate ?? pickupCoordinate ?? DEFAULT_PICKUP_COORD;
+  const destPoint = destinationCoordinate;
+
+  const [driverCoordinate, setDriverCoordinate] = useState(() =>
+    offsetCoordinate(userPoint, 0.004, 0.003)
+  );
+  const [driverEta, setDriverEta] = useState('3 min');
+  const [driverVehicle, setDriverVehicle] = useState<VehicleCategoryId>(vehicleCategoryId);
+  const [liveDriverActive, setLiveDriverActive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let stopWatch: (() => void) | undefined;
+
+    watchUserLocation((point) => {
+      if (!cancelled) setUserCoordinate(point);
+    }).then((stop) => {
+      stopWatch = stop;
+    });
+
+    return () => {
+      cancelled = true;
+      stopWatch?.();
+    };
+  }, [setUserCoordinate]);
 
   useEffect(() => {
     const unsubscribe = onOrderStatusChanged((payload) => {
@@ -69,6 +106,106 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
     };
   }, [orderId, setBookingStatus, navigation]);
 
+  useEffect(() => {
+    const unsubscribe = onLiveDriverMoved((payload) => {
+      setLiveDriverActive(true);
+      setDriverCoordinate({ latitude: payload.lat, longitude: payload.lng });
+      if (payload.vehicleType) {
+        setDriverVehicle(vehicleCategoryFromBackend(payload.vehicleType));
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!isAssigned || liveDriverActive) return;
+
+    const startTarget =
+      useBookingStore.getState().userCoordinate ??
+      useBookingStore.getState().pickupCoordinate ??
+      DEFAULT_PICKUP_COORD;
+
+    setDriverCoordinate(offsetCoordinate(startTarget, 0.004, 0.003));
+
+    const interval = setInterval(() => {
+      const target =
+        useBookingStore.getState().userCoordinate ??
+        useBookingStore.getState().pickupCoordinate ??
+        DEFAULT_PICKUP_COORD;
+
+      setDriverCoordinate((prev) => {
+        const latDiff = target.latitude - prev.latitude;
+        const lngDiff = target.longitude - prev.longitude;
+        const dist = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+        if (dist < 0.0004) {
+          setDriverEta('Arriving');
+          return prev;
+        }
+
+        const step = 0.00035;
+        const ratio = step / dist;
+        setDriverEta(`${Math.max(1, Math.round(dist * 111000 / 500))} min`);
+        return {
+          latitude: prev.latitude + latDiff * ratio,
+          longitude: prev.longitude + lngDiff * ratio,
+        };
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isAssigned, liveDriverActive]);
+
+  const displayRoute = useMemo(() => {
+    if (!userPoint || routeCoordinates.length < 2) {
+      return routeCoordinates;
+    }
+    return anchorRouteStartToUser(routeCoordinates, userPoint);
+  }, [userPoint, routeCoordinates]);
+
+  const mapMarkers: MapMarkerData[] = useMemo(() => {
+    const markers: MapMarkerData[] = [
+      {
+        id: 'user',
+        coordinate: userPoint,
+        type: 'user',
+      },
+    ];
+
+    if (destPoint) {
+      markers.push({
+        id: 'dest',
+        coordinate: destPoint,
+        type: 'destination',
+        vehicleCategory: vehicleCategoryId,
+        label: arrivalTime || travelEta,
+      });
+    }
+
+    if (isAssigned) {
+      markers.push({
+        id: 'driver',
+        coordinate: driverCoordinate,
+        type: 'driver',
+        vehicleCategory: driverVehicle,
+        label: driverEta,
+      });
+    }
+
+    return markers;
+  }, [
+    userPoint,
+    destPoint,
+    vehicleCategoryId,
+    arrivalTime,
+    travelEta,
+    isAssigned,
+    driverCoordinate,
+    driverEta,
+    driverVehicle,
+  ]);
+
   const handleCompleteDelivery = () => {
     setBookingStatus('completed');
     navigation.replace('DeliveryCompleted', { orderId });
@@ -78,34 +215,40 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
     <View style={styles.root}>
       <MapContainer
         markers={mapMarkers}
-        routeCoordinates={[PICKUP_COORD, DEST_COORD]}
+        routeCoordinates={displayRoute.length > 1 ? displayRoute : undefined}
+        routeFollowsRoads
+        focusCoordinate={userPoint}
+        mapPaddingBottom={SHEET_HEIGHT}
         showBackButton
         onBackPress={() => navigation.navigate('CustomerHome')}
       />
 
       {isSearching && (
-        <InlineBottomSheet contentStyle={styles.searchingContent}>
+        <InlineBottomSheet contentStyle={styles.searchingContent} maxHeightRatio={0.38}>
           <Text style={styles.searchingTitle}>Locating nearby driver...</Text>
           <Text style={styles.searchingSub}>
             Notifying {category?.name} {model?.name} drivers near {pickupLocation}
           </Text>
+          {destination ? (
+            <Text style={styles.routeHint}>Route to {destination}</Text>
+          ) : null}
           <Text style={styles.orderRef}>Order {orderId}</Text>
           <View style={styles.loaderPulse} />
         </InlineBottomSheet>
       )}
 
       {isAssigned && (
-        <InlineBottomSheet>
+        <InlineBottomSheet maxHeightRatio={0.38}>
           <View style={styles.driverHeader}>
             <Text style={styles.driverTitle}>Driver is arriving!</Text>
             <View style={styles.etaBadge}>
-              <Text style={styles.etaText}>2 mins away</Text>
+              <Text style={styles.etaText}>{driverEta} away</Text>
             </View>
           </View>
 
           <View style={styles.driverCard}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarIcon}>👤</Text>
+              <Text style={styles.avatarIcon}>{category?.icon ?? '🚗'}</Text>
             </View>
             <View style={styles.driverInfo}>
               <Text style={styles.driverName}>Yared Moges</Text>
@@ -143,6 +286,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.textSecondary,
     marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  routeHint: {
+    fontSize: fontSize.sm,
+    color: colors.textPlaceholder,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
   orderRef: {

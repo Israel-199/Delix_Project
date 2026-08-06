@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useMemo, useRef } from 'react';
+import React, { ReactNode, useEffect, useRef } from 'react';
 import {
   Pressable,
   StyleProp,
@@ -7,13 +7,14 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import MapView, { MapViewProps, Marker, Polyline, Region } from 'react-native-maps';
-import { colors, radius, shadows, spacing } from '../../design-system';
+import MapView, { MapViewProps, Polyline, Region } from 'react-native-maps';
+import { colors, radius, shadows } from '../../design-system';
 import { fontSize, fontWeight } from '../../design-system/typography';
 import { DEFAULT_MAP_REGION } from '../../constants';
 import { MapMarkerData } from '../../types';
 import { moderateScale, widthScale, heightScale } from '../../utils/responsive';
-import { MapMarkerPin } from './MapMarkerPin';
+import { regionAroundUserDetail } from '../../services/locationService';
+import { MapMarkerView } from './MapMarkerView';
 
 export interface MapContainerProps extends Omit<MapViewProps, 'style'> {
   style?: StyleProp<ViewStyle>;
@@ -25,7 +26,8 @@ export interface MapContainerProps extends Omit<MapViewProps, 'style'> {
   backButtonOverlay?: ReactNode;
   rightOverlay?: ReactNode;
   initialRegion?: Region;
-  fitToRoute?: boolean;
+  /** Lock map on user with street-level zoom — no second auto-fit. */
+  focusCoordinate?: { latitude: number; longitude: number } | null;
   mapPaddingBottom?: number;
 }
 
@@ -39,54 +41,48 @@ export const MapContainer = ({
   backButtonOverlay,
   rightOverlay,
   initialRegion = DEFAULT_MAP_REGION,
-  fitToRoute = true,
+  focusCoordinate,
   mapPaddingBottom = 0,
   children,
   ...mapProps
 }: MapContainerProps) => {
   const mapRef = useRef<MapView>(null);
-
-  const fitCoords = useMemo(() => {
-    const points = markers
-      .filter((m) => m.type === 'user' || m.type === 'destination')
-      .map((m) => m.coordinate);
-
-    if (routeCoordinates?.length) {
-      points.push(
-        routeCoordinates[0],
-        routeCoordinates[routeCoordinates.length - 1]
-      );
-    }
-
-    return points;
-  }, [markers, routeCoordinates]);
+  const didZoomToUser = useRef(false);
+  const focusOnMount = useRef(!!focusCoordinate);
 
   useEffect(() => {
-    if (!fitToRoute || !mapRef.current || fitCoords.length < 2) return;
+    if (!focusCoordinate || didZoomToUser.current) return;
 
+    didZoomToUser.current = true;
+
+    if (focusOnMount.current) return;
+
+    const region = regionAroundUserDetail(focusCoordinate);
     const timer = setTimeout(() => {
-      mapRef.current?.fitToCoordinates(fitCoords, {
-        edgePadding: {
-          top: heightScale(80),
-          right: widthScale(48),
-          bottom: mapPaddingBottom + heightScale(48),
-          left: widthScale(48),
-        },
-        animated: true,
-      });
-    }, 400);
+      mapRef.current?.animateToRegion(region, 280);
+    }, 80);
 
     return () => clearTimeout(timer);
-  }, [fitCoords, fitToRoute, mapPaddingBottom]);
+  }, [focusCoordinate]);
+
+  const mapInitialRegion = focusCoordinate
+    ? regionAroundUserDetail(focusCoordinate)
+    : initialRegion;
 
   return (
     <View style={[styles.container, style]}>
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={initialRegion}
+        initialRegion={mapInitialRegion}
         showsUserLocation={false}
         showsMyLocationButton={false}
+        mapPadding={{
+          top: heightScale(60),
+          right: widthScale(16),
+          bottom: mapPaddingBottom + heightScale(16),
+          left: widthScale(16),
+        }}
         {...mapProps}
       >
         {routeCoordinates && routeCoordinates.length > 1 && (
@@ -100,14 +96,7 @@ export const MapContainer = ({
         )}
 
         {markers.map((marker) => (
-          <Marker
-            key={marker.id}
-            coordinate={marker.coordinate}
-            anchor={{ x: 0.5, y: typeAnchorY(marker.type) }}
-            tracksViewChanges={false}
-          >
-            <MapMarkerPin marker={marker} />
-          </Marker>
+          <MapMarkerView key={marker.id} marker={marker} />
         ))}
 
         {children}
@@ -129,13 +118,6 @@ export const MapContainer = ({
       ) : null}
     </View>
   );
-};
-
-const typeAnchorY = (type?: MapMarkerData['type']) => {
-  if (type === 'user') return 0.5;
-  if (type === 'destination') return 1;
-  if (type === 'driver') return 0.5;
-  return 0.9;
 };
 
 const styles = StyleSheet.create({

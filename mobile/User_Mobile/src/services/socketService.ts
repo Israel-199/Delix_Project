@@ -33,4 +33,18 @@ export const onOrderStatusChanged = (
   };
 };
 
+export const onLiveDriverMoved = (
+  handler: (payload: {
+    driverId: string;
+    lat: number;
+    lng: number;
+    vehicleType?: string;
+  }) => void
+) => {
+  getSocket().on('live_driver_moved', handler);
+  return () => {
+    getSocket().off('live_driver_moved', handler);
+  };
+};
+
 export default getSocket;

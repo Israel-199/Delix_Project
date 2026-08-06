@@ -15,11 +15,14 @@ import { colors, radius, spacing } from '../design-system';
 import { fontSize, fontWeight } from '../design-system/typography';
 import { RootStackParamList } from '../navigation/types';
 import { resolveDestination, reverseGeocode } from '../services/geocodingService';
-import { requestUserLocation } from '../services/locationService';
+import { requestUserLocation, watchUserLocation } from '../services/locationService';
 import { fetchDrivingRoute } from '../services/routingService';
+import { onLiveDriverMoved } from '../services/socketService';
 import { useBookingStore } from '../store/bookingStore';
 import { MapMarkerData, NearbyDriver, ServiceModelId, VehicleCategoryId } from '../types';
+import { vehicleCategoryFromBackend } from '../utils/driverTracking';
 import { formatCurrencyLabel } from '../utils/mappers';
+import { anchorRouteStartToUser } from '../utils/routeUtils';
 import { heightScale } from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MapBooking'>;
@@ -59,6 +62,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
     setServiceModel,
     setRouteGeometry,
     setPickupLabel,
+    setUserCoordinate,
     fetchEstimatesForModels,
     estimateError,
   } = useBookingStore();
@@ -73,18 +77,49 @@ const MapBookingScreen = ({ navigation }: Props) => {
   const [mapReady, setMapReady] = useState(false);
   const [routeFollowsRoads, setRouteFollowsRoads] = useState(true);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [liveDrivers, setLiveDrivers] = useState<NearbyDriver[]>([]);
+
+  useEffect(() => {
+    return onLiveDriverMoved((payload) => {
+      const vehicleCategory = vehicleCategoryFromBackend(payload.vehicleType);
+      setLiveDrivers((prev) => {
+        const next = {
+          id: payload.driverId,
+          coordinate: { latitude: payload.lat, longitude: payload.lng },
+          vehicleCategory,
+          etaMinutes: 2,
+        };
+        const index = prev.findIndex((d) => d.id === payload.driverId);
+        if (index >= 0) {
+          const copy = [...prev];
+          copy[index] = next;
+          return copy;
+        }
+        return [...prev, next];
+      });
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    let stopWatch: (() => void) | undefined;
 
     const loadRoute = async () => {
       setMapReady(false);
       setMapError(null);
 
       const userPoint = await requestUserLocation();
+      if (cancelled) return;
+
+      setUserCoordinate(userPoint ?? { ...DEFAULT_PICKUP_COORD, label: 'You' });
+
+      stopWatch = await watchUserLocation((point) => {
+        if (!cancelled) {
+          setUserCoordinate(point);
+        }
+      });
 
       const destPoint = await resolveDestination(destination, destinationCoordinate);
-
       if (cancelled) return;
 
       if (!destPoint) {
@@ -110,9 +145,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
       setRouteFollowsRoads(route.followsRoads);
 
       setRouteGeometry({
-        pickupCoordinate: origin,
         destinationCoordinate: destPoint,
-        userCoordinate: origin,
         routeCoordinates: route.coordinates,
         distanceKm: route.distanceKm,
         travelEta: route.durationLabel,
@@ -125,8 +158,18 @@ const MapBookingScreen = ({ navigation }: Props) => {
     };
 
     loadRoute();
-    return () => { cancelled = true; };
-  }, [destination, destinationCoordinate, setRouteGeometry, setPickupLabel]);
+
+    return () => {
+      cancelled = true;
+      stopWatch?.();
+    };
+  }, [
+    destination,
+    destinationCoordinate,
+    setRouteGeometry,
+    setPickupLabel,
+    setUserCoordinate,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +191,13 @@ const MapBookingScreen = ({ navigation }: Props) => {
     return () => { cancelled = true; };
   }, [vehicleCategoryId, mapReady, mapError, fetchEstimatesForModels, serviceModels]);
 
+  const displayRoute = useMemo(() => {
+    if (!userCoordinate || routeCoordinates.length < 2) {
+      return routeCoordinates;
+    }
+    return anchorRouteStartToUser(routeCoordinates, userCoordinate);
+  }, [userCoordinate, routeCoordinates]);
+
   const mapMarkers: MapMarkerData[] = useMemo(() => {
     const markers: MapMarkerData[] = [];
 
@@ -164,21 +214,33 @@ const MapBookingScreen = ({ navigation }: Props) => {
         id: 'dest',
         coordinate: destinationCoordinate,
         type: 'destination',
+        vehicleCategory: vehicleCategoryId,
         label: arrivalTime || travelEta,
       });
     }
 
-    nearbyDrivers.forEach((driver) => {
+    const driversOnMap = liveDrivers.length > 0 ? liveDrivers : nearbyDrivers;
+
+    driversOnMap.forEach((driver) => {
       markers.push({
         id: driver.id,
         coordinate: driver.coordinate,
         type: 'driver',
         vehicleCategory: driver.vehicleCategory,
+        label: driver.etaMinutes ? `${driver.etaMinutes} min` : undefined,
       });
     });
 
     return markers;
-  }, [userCoordinate, destinationCoordinate, nearbyDrivers, arrivalTime, travelEta]);
+  }, [
+    userCoordinate,
+    destinationCoordinate,
+    nearbyDrivers,
+    liveDrivers,
+    vehicleCategoryId,
+    arrivalTime,
+    travelEta,
+  ]);
 
   const vehicleIcon = useCallback((categoryId: VehicleCategoryId) => {
     const cat = VEHICLE_CATEGORIES.find((c) => c.id === categoryId);
@@ -193,19 +255,21 @@ const MapBookingScreen = ({ navigation }: Props) => {
   return (
     <View style={styles.root}>
       <View style={styles.mapArea}>
-        <MapContainer
-          markers={mapMarkers}
-          routeCoordinates={routeCoordinates}
-          routeFollowsRoads={routeFollowsRoads}
-          showBackButton
-          onBackPress={() => navigation.goBack()}
-          mapPaddingBottom={SHEET_HEIGHT}
-          fitToRoute={mapReady && mapMarkers.length >= 2}
-        />
-        {!mapReady && (
+        {userCoordinate ? (
+          <MapContainer
+            markers={mapMarkers}
+            routeCoordinates={displayRoute}
+            routeFollowsRoads={routeFollowsRoads}
+            focusCoordinate={userCoordinate}
+            showBackButton
+            onBackPress={() => navigation.goBack()}
+            mapPaddingBottom={SHEET_HEIGHT}
+          />
+        ) : null}
+        {!userCoordinate && (
           <View style={styles.mapLoader}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Finding your route…</Text>
+            <Text style={styles.loadingText}>Finding your location…</Text>
           </View>
         )}
       </View>
