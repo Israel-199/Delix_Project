@@ -268,6 +268,14 @@ const MapBookingScreen = ({ navigation }: Props) => {
     return '🚗';
   }, []);
 
+  const getVehicleImageForCategory = useCallback((catId: VehicleCategoryId) => {
+    for (const cat of CARGO_TYPE_CATEGORIES) {
+      const v = cat.vehicles.find((item) => item.id === catId);
+      if (v && v.vehicleImage) return v.vehicleImage;
+    }
+    return null;
+  }, []);
+
   const handleCargoCategorySelect = (key: CargoTypeKey) => {
     setCargoTypeKey(key);
     const cat = CARGO_TYPE_CATEGORIES.find((c) => c.id === key);
@@ -387,6 +395,7 @@ const MapBookingScreen = ({ navigation }: Props) => {
                   model={model}
                   priceLabel={priceLabel}
                   vehicleIcon={vehicleIcon(activeVehicleId)}
+                  vehicleImage={getVehicleImageForCategory(activeVehicleId)}
                   selected={serviceModelId === model.id}
                   unavailable={!estimate && !loadingPrices}
                   onPress={() => setServiceModel(model.id)}

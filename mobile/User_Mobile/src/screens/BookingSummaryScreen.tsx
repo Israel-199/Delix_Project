@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DelixButton, ScreenContainer } from '../components';
 import { PaymentMethodPicker } from '../components/inputs/PaymentMethodPicker';
-import { VEHICLE_CATEGORIES } from '../constants';
+import { CARGO_TYPE_CATEGORIES, VEHICLE_CATEGORIES } from '../constants';
 import { CARGO_CATEGORIES } from '../constants/cargo';
 import { findServiceModel } from '../constants/serviceModels';
 import { colors, radius, spacing } from '../design-system';
-import { fontSize, fontWeight, textStyles } from '../design-system/typography';
+import { fontFamilies } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { ApiError } from '../services/apiClient';
 import { createOrder } from '../services/orderService';
 import { emitCargoDeliveryRequest } from '../services/socketService';
 import { useAuthStore } from '../store/authStore';
 import { useBookingStore } from '../store/bookingStore';
+import { moderateScale } from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BookingSummary'>;
 
@@ -35,6 +36,7 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
     pickupLocation,
     destination,
     vehicleCategoryId,
+    selectedVehicleId,
     serviceModelId,
     distanceKm,
     travelEta,
@@ -55,9 +57,20 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
     isEstimating,
   } = booking;
 
-  const category = VEHICLE_CATEGORIES.find((v) => v.id === vehicleCategoryId);
+  const activeVehicleId = selectedVehicleId ?? vehicleCategoryId;
+
+  const categoryName = useMemo(() => {
+    const oldCat = VEHICLE_CATEGORIES.find((v) => v.id === activeVehicleId);
+    if (oldCat) return oldCat.name;
+    for (const c of CARGO_TYPE_CATEGORIES) {
+      const found = c.vehicles.find((v) => v.id === activeVehicleId);
+      if (found) return found.name;
+    }
+    return activeVehicleId;
+  }, [activeVehicleId]);
+
   const model = serviceModelId
-    ? findServiceModel(vehicleCategoryId, serviceModelId)
+    ? findServiceModel(activeVehicleId, serviceModelId)
     : undefined;
   const cargo = CARGO_CATEGORIES.find((c) => c.id === cargoCategory);
 
@@ -75,7 +88,7 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
         {
           customerId: phone || 'USR-MOBILE',
           cargoCategory,
-          vehicleCategoryId,
+          vehicleCategoryId: activeVehicleId,
           serviceModelId,
           pickupAddress: pickupLocation,
           pickupLat: pickupCoordinate?.latitude ?? userCoordinate?.latitude,
@@ -123,10 +136,10 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
       <View style={styles.card}>
         <SummaryRow label="Pickup" value={pickupLocation} />
         <SummaryRow label="Destination" value={destination} />
-        <SummaryRow label="Vehicle" value={`${category?.name} · ${model?.name ?? ''}`} />
+        <SummaryRow label="Vehicle" value={`${categoryName} · ${model?.name ?? 'Standard'}`} />
         <SummaryRow label="Cargo" value={`${cargo?.label ?? ''} — ${cargoDescription}`} />
         {specialInstructions ? (
-          <SummaryRow label="Instructions" value={specialInstructions} />
+          <SummaryRow label="Driver Instructions" value={specialInstructions} />
         ) : null}
         <SummaryRow
           label="Assistance"
@@ -163,10 +176,16 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   content: { paddingTop: spacing.md },
   back: { marginBottom: spacing.md },
-  backText: { fontSize: fontSize['2xl'], fontWeight: fontWeight.black },
-  title: { ...textStyles.sectionTitle, marginBottom: spacing.xxs },
+  backText: { fontFamily: fontFamilies.bold, fontSize: moderateScale(22) },
+  title: {
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(22),
+    color: colors.textPrimary,
+    marginBottom: spacing.xxs,
+  },
   subtitle: {
-    fontSize: fontSize.md,
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(14),
     color: colors.textSecondary,
     marginBottom: spacing.xl,
   },
@@ -179,13 +198,13 @@ const styles = StyleSheet.create({
   },
   row: { gap: spacing.xxs },
   rowLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamilies.semibold,
+    fontSize: moderateScale(13),
     color: colors.textSecondary,
   },
   rowValue: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(15),
     color: colors.textPrimary,
   },
   totalBox: {
@@ -197,16 +216,26 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     marginBottom: spacing.lg,
   },
-  totalLabel: { fontSize: fontSize.base, fontWeight: fontWeight.semibold },
-  totalAmount: { fontSize: fontSize['2xl'], fontWeight: fontWeight.black, color: colors.primary },
+  totalLabel: {
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(15),
+    color: colors.textPrimary,
+  },
+  totalAmount: {
+    fontFamily: fontFamilies.extrabold,
+    fontSize: moderateScale(22),
+    color: colors.primary,
+  },
   paymentLabel: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(15),
+    color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
   error: {
+    fontFamily: fontFamilies.medium,
     color: colors.error,
-    fontSize: fontSize.sm,
+    fontSize: moderateScale(13),
     marginBottom: spacing.sm,
   },
   button: { marginTop: spacing.md, marginBottom: spacing['2xl'] },

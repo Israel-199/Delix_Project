@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Image, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import { colors, radius, shadows, spacing } from '../../design-system';
-import { fontSize, fontWeight } from '../../design-system/typography';
+import { fontFamilies } from '../../theme/typography';
 import { ServiceModel } from '../../types';
 import { moderateScale, widthScale } from '../../utils/responsive';
 
@@ -9,6 +9,7 @@ export interface ServiceModelCardProps {
   model: ServiceModel;
   priceLabel: string;
   vehicleIcon?: string;
+  vehicleImage?: any;
   selected?: boolean;
   unavailable?: boolean;
   onPress?: () => void;
@@ -19,6 +20,7 @@ export const ServiceModelCard = ({
   model,
   priceLabel,
   vehicleIcon = '🚗',
+  vehicleImage,
   selected = false,
   unavailable = false,
   onPress,
@@ -38,7 +40,11 @@ export const ServiceModelCard = ({
     ]}
   >
     <Text style={styles.eta}>{model.eta ?? '—'}</Text>
-    <Text style={styles.vehicleIcon}>{vehicleIcon}</Text>
+    {vehicleImage ? (
+      <Image source={vehicleImage} style={styles.vehicleImage} resizeMode="contain" />
+    ) : (
+      <Text style={styles.vehicleIcon}>{vehicleIcon}</Text>
+    )}
     <Text style={[styles.name, selected && styles.nameSelected]} numberOfLines={1}>
       {model.name}
     </Text>
@@ -50,11 +56,11 @@ export const ServiceModelCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    width: widthScale(100),
-    minHeight: moderateScale(120),
+    width: widthScale(105),
+    minHeight: moderateScale(125),
     backgroundColor: colors.backgroundTertiary,
     borderRadius: radius.lg,
-    padding: spacing.sm,
+    padding: spacing.xs,
     marginRight: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -73,9 +79,14 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   eta: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(12),
     color: colors.textPrimary,
+    marginBottom: spacing.xxs,
+  },
+  vehicleImage: {
+    width: moderateScale(42),
+    height: moderateScale(30),
     marginBottom: spacing.xxs,
   },
   vehicleIcon: {
@@ -83,8 +94,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxs,
   },
   name: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(13),
     color: colors.textPrimary,
     textAlign: 'center',
   },
@@ -92,8 +103,8 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
   },
   price: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamilies.semibold,
+    fontSize: moderateScale(12),
     color: colors.textSecondary,
     marginTop: spacing.xxs,
     textAlign: 'center',

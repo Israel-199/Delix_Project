@@ -6,6 +6,7 @@ import {
   StyleProp,
   StyleSheet,
   Text,
+  TextStyle,
   ViewStyle,
 } from 'react-native';
 import { colors, radius, spacing } from '../../design-system';
@@ -20,6 +21,7 @@ export interface DelixButtonProps extends Omit<PressableProps, 'style'> {
   loading?: boolean;
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 export const DelixButton = ({
@@ -29,6 +31,7 @@ export const DelixButton = ({
   disabled = false,
   fullWidth = true,
   style,
+  textStyle,
   ...pressableProps
 }: DelixButtonProps) => {
   const isDisabled = disabled || loading;
@@ -53,7 +56,7 @@ export const DelixButton = ({
           size="small"
         />
       ) : (
-        <Text style={[textStyles.button, variantStyles[variant].label]}>{title}</Text>
+        <Text style={[textStyles.button, variantStyles[variant].label, textStyle]}>{title}</Text>
       )}
     </Pressable>
   );
