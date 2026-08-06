@@ -63,7 +63,9 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 
-server.listen(PORT, () => {
-  console.log(`🚀 Delix Backend Server & WebSockets running on port ${PORT}`);
+server.listen(Number(PORT), HOST, () => {
+  console.log(`🚀 Delix Backend Server & WebSockets running on http://${HOST}:${PORT}`.green);
+  console.log(`   Health check: http://localhost:${PORT}/api/health`.cyan);
 });
