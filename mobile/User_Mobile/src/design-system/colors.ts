@@ -11,6 +11,7 @@ export const colors = {
 
   // Backgrounds
   background: '#FFFFFF',
+  surface: '#FFFFFF',
   backgroundSecondary: '#F9FAFB',
   backgroundTertiary: '#F3F4F6',
   mapBackground: '#E5E5E0',
@@ -18,6 +19,7 @@ export const colors = {
   // Text
   textPrimary: '#1F2937',
   textSecondary: '#6B7280',
+  textTertiary: '#9CA3AF',
   textPlaceholder: '#9CA3AF',
   textInverse: '#FFFFFF',
   textOnPrimary: '#FFFFFF',
@@ -28,8 +30,11 @@ export const colors = {
   divider: '#F3F4F6',
 
   // Semantic
+  accent: '#10B981',
   error: '#EF4444',
+  errorLight: '#FEF2F2',
   errorTint: '#FEF2F2',
+
   warning: '#F59E0B',
   warningTint: '#FFFBEB',
   success: '#22C55E',

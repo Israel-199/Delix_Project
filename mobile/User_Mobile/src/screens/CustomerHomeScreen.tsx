@@ -222,30 +222,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     flexGrow: 1, 
     justifyContent: 'space-between',
-    
+    paddingTop: spacing.xs,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingBottom: 0,
+    marginBottom: 0,
   },
   homeLogo: {
-    width: moderateScale(110),
-    height: moderateScale(110),
+    width: moderateScale(100),
+    height: moderateScale(55),
   },
   menuIcon: { fontSize: moderateScale(24) },
   cargoGridContainer: {
     paddingHorizontal: spacing.lg,
+    marginVertical: spacing.xs,
   },
   sectionLabel: {
     fontFamily: fontFamilies.bold,
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(14),
     color: colors.textPrimary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   cargoGrid: {
@@ -253,7 +255,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     justifyContent: 'space-between',
   },
-  searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
+  searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.xs },
   searchScreen: { paddingHorizontal: spacing.lg },
   searchHeader: {
     flexDirection: 'row',

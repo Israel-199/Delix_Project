@@ -20,6 +20,11 @@
         "backgroundColor": "#FF5722"
       }
     },
+    "androidNavigationBar": {
+      "visible": "adaptive",
+      "backgroundColor": "#FFFFFF",
+      "barStyle": "dark-content"
+    },
     "plugins": [
       "expo-font",
       [

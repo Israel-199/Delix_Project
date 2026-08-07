@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { DelixButton, PhoneInput, ScreenContainer, validateEthiopianPhone } from '../components';
+import { DelixButton, PhoneInput, ScreenContainer } from '../components';
+import { validatePhone } from '../components/inputs/PhoneInput';
 import { colors, spacing } from '../design-system';
 import { textStyles, typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
@@ -13,6 +14,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 const LoginScreen = ({ navigation }: Props) => {
   const sendOtp = useAuthStore((s) => s.sendOtp);
   const [phone, setPhoneLocal] = useState('');
+  const [countryCode, setCountryCode] = useState('+251');
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
 
@@ -21,8 +23,8 @@ const LoginScreen = ({ navigation }: Props) => {
       setError('Phone number is required');
       return;
     }
-    if (!validateEthiopianPhone(phone)) {
-      setError('Enter a valid Ethiopian phone number');
+    if (!validatePhone(phone, countryCode)) {
+      setError('Enter a valid phone number');
       return;
     }
 
@@ -30,8 +32,12 @@ const LoginScreen = ({ navigation }: Props) => {
     setError(undefined);
 
     try {
-      await sendOtp(phone);
-      navigation.navigate('OtpVerification', { phone });
+      const fullPhone = countryCode + phone;
+      const res = await sendOtp(fullPhone);
+      if (res?.devOtp) {
+        Alert.alert('Test OTP Code', `Your verification code is: ${res.devOtp}\n\n(Use this since SMS is not active in dev phase)`);
+      }
+      navigation.navigate('OtpVerification', { phone: fullPhone });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not send OTP. Check your connection.');
     } finally {
@@ -53,6 +59,11 @@ const LoginScreen = ({ navigation }: Props) => {
 
       <View style={styles.form}>
         <PhoneInput
+          countryCode={countryCode}
+          onCountryCodeChange={(code) => {
+            setCountryCode(code);
+            if (error) setError(undefined);
+          }}
           value={phone}
           onChangeText={(text) => {
             setPhoneLocal(text);

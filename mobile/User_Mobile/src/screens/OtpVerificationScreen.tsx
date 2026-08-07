@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Image, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DelixButton, ScreenContainer } from '../components';
 import { colors, radius, spacing } from '../design-system';
@@ -21,7 +21,23 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const inputs = useRef<Array<TextInput | null>>([]);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const otpValue = digits.join('');
 
@@ -58,7 +74,16 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
 
     try {
       await verifyAndLogin(phone, code);
-      navigation.replace('CustomerHome');
+      // Wait for state to update, authStore's verifyAndLogin doesn't return user directly
+      // However, we know if they are a first timer or not if we check from store after await.
+      // Wait, verifyAndLogin inside authStore could return something. Let's just check useAuthStore.getState().user later?
+      // Since it's zustand, we can check useAuthStore.getState().user inside handleVerify!
+      const user = useAuthStore.getState().user;
+      if (user && user.name !== 'Delix User' && user.name.trim() !== '') {
+        navigation.replace('CustomerHome');
+      } else {
+        navigation.replace('ProfileSetup');
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Verification failed');
       setDigits(Array(OTP_LENGTH).fill(''));
@@ -72,7 +97,10 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
     setResending(true);
     setError(undefined);
     try {
-      await sendOtp(phone);
+      const res = await sendOtp(phone);
+      if (res?.devOtp) {
+        Alert.alert('Test OTP Code', `Your verification code is: ${res.devOtp}\n\n(Use this since SMS is not active in dev phase)`);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not resend code');
     } finally {
@@ -88,7 +116,7 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
         </Pressable>
 
         <Text style={styles.title}>Verify Your Number</Text>
-        <Text style={styles.subtitle}>Code sent to +251 {phone.replace(/\s/g, '').replace(/^0/, '')}</Text>
+        <Text style={styles.subtitle}>Code sent to {phone.startsWith('+') ? phone : `+251 ${phone.replace(/\s/g, '').replace(/^0/, '')}`}</Text>
 
       <View style={styles.otpRow}>
         {digits.map((digit, index) => (
@@ -120,13 +148,15 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
         </Pressable>
       </View>
 
-      <View style={styles.bottomSection}>
-        <Image 
-          source={require('../../assets/images/welcome_logo.png')} 
-          style={styles.bottomLogo} 
-          resizeMode="contain" 
-        />
-      </View>
+      {!isKeyboardVisible && (
+        <View style={styles.bottomSection}>
+          <Image 
+            source={require('../../assets/images/welcome_logo.png')} 
+            style={styles.bottomLogo} 
+            resizeMode="contain" 
+          />
+        </View>
+      )}
     </ScreenContainer>
   );
 };

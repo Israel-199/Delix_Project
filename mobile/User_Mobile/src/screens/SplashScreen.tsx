@@ -11,7 +11,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 const SplashScreen = ({ navigation }: Props) => {
   const scale = useRef(new Animated.Value(0.8)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const { isAuthenticated, isHydrated, hydrate } = useAuthStore();
+  const { isAuthenticated, isHydrated, hydrate, user } = useAuthStore();
 
   useEffect(() => {
     hydrate();
@@ -25,11 +25,19 @@ const SplashScreen = ({ navigation }: Props) => {
     if (!isHydrated) return;
 
     const timer = setTimeout(() => {
-      navigation.replace(isAuthenticated ? 'CustomerHome' : 'Login');
+      if (isAuthenticated) {
+        if (user && user.name !== 'Delix User' && user.name.trim() !== '') {
+          navigation.replace('CustomerHome');
+        } else {
+          navigation.replace('ProfileSetup');
+        }
+      } else {
+        navigation.replace('Login');
+      }
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, isHydrated, navigation]);
+  }, [isAuthenticated, isHydrated, navigation, user]);
 
   return (
     <View style={styles.container}>

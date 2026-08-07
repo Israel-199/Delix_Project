@@ -2,6 +2,7 @@ export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
   OtpVerification: { phone: string };
+  ProfileSetup: undefined;
   CustomerHome: undefined;
   MapBooking: undefined;
   VehicleDetails: { vehicleId: string };
@@ -9,4 +10,10 @@ export type RootStackParamList = {
   BookingSummary: undefined;
   DriverTracking: { orderId: string };
   DeliveryCompleted: { orderId: string };
+  MyProfile: undefined;
+  MyDeliveries: undefined;
+  Notifications: undefined;
+  HelpSupport: undefined;
+  About: undefined;
 };
+

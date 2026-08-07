@@ -91,7 +91,7 @@ export const BottomSheet = ({
   }
 
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
+    <Modal transparent statusBarTranslucent visible={visible} animationType="none" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
         {showBackdrop && (
           <Pressable
