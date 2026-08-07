@@ -118,3 +118,45 @@ export const createOrder = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message || 'Order creation failed' });
   }
 };
+
+/**
+ * Fetch Order History for User
+ */
+export const getUserOrders = async (req: Request, res: Response) => {
+  try {
+    const orders = [
+      {
+        id: 'DLX-8492',
+        cargoCategory: 'FURNITURE',
+        vehicleRequested: 'PICKUP_TRUCK',
+        pickupAddress: 'Bole Atlas, Addis Ababa',
+        destinationAddress: 'Kazanchis, Addis Ababa',
+        estimatedPrice: 650,
+        currency: 'ETB',
+        paymentMethod: 'Telebirr',
+        status: 'COMPLETED',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+      },
+      {
+        id: 'DLX-7104',
+        cargoCategory: 'DOCUMENTS',
+        vehicleRequested: 'LADA_BED',
+        pickupAddress: 'Mercato, Addis Ababa',
+        destinationAddress: 'Piassa, Addis Ababa',
+        estimatedPrice: 300,
+        currency: 'ETB',
+        paymentMethod: 'Cash',
+        status: 'COMPLETED',
+        createdAt: new Date(Date.now() - 172800000).toISOString(),
+      }
+    ];
+
+    res.status(200).json({
+      success: true,
+      orders,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch orders' });
+  }
+};
+

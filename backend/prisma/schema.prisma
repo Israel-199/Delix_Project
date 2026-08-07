@@ -45,9 +45,12 @@ enum CargoCategory {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  phone     String   @unique
-  name      String
+  id              String   @id @default(uuid())
+  phone           String   @unique
+  firstName       String?
+  middleName      String?
+  lastName        String?
+  profilePhotoUrl String?
   role      Role     @default(CUSTOMER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
