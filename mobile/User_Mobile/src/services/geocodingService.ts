@@ -1,4 +1,3 @@
-import { findRecentLocation } from '../constants/locations';
 import { ADDIS_VIEWBOX, isInAddisAbaba } from '../constants/locationCoords';
 import { LocationPoint } from '../types';
 
@@ -49,15 +48,6 @@ export const reverseGeocode = async (
 export const geocodeAddress = async (address: string): Promise<LocationPoint | null> => {
   const trimmed = address.trim();
   if (!trimmed) return null;
-
-  const recent = findRecentLocation(trimmed);
-  if (recent) {
-    return {
-      latitude: recent.latitude,
-      longitude: recent.longitude,
-      address: recent.title,
-    };
-  }
 
   try {
     const params = new URLSearchParams({

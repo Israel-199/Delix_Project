@@ -5,6 +5,7 @@ import { colors, spacing } from '../design-system';
 import { textStyles, typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
+import { hasLocationPermission } from '../services/locationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
@@ -24,10 +25,11 @@ const SplashScreen = ({ navigation }: Props) => {
   useEffect(() => {
     if (!isHydrated) return;
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (isAuthenticated) {
-        if (user && user.name !== 'Delix User' && user.name.trim() !== '') {
-          navigation.replace('CustomerHome');
+        if (user?.isProfileComplete) {
+          const granted = await hasLocationPermission();
+          navigation.replace(granted ? 'CustomerHome' : 'LocationPermission');
         } else {
           navigation.replace('ProfileSetup');
         }

@@ -53,7 +53,7 @@ const ProfileSetupScreen = ({ navigation }: Props) => {
         profilePhoto: cloudinaryUrl,
       });
 
-      navigation.replace('CustomerHome');
+      navigation.replace('LocationPermission');
     } catch (err: any) {
       setError(err.message || 'Failed to update profile. Please try again.');
     } finally {

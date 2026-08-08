@@ -14,7 +14,7 @@ const AboutScreen = ({ navigation }: Props) => {
     <ScreenContainer scrollable contentStyle={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Pressable onPress={() => navigation.navigate('CustomerHome', { openDrawer: true })} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </Pressable>
         <Text style={styles.headerTitle}>About Delix</Text>

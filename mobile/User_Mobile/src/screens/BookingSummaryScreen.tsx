@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DelixButton, ScreenContainer } from '../components';
@@ -54,10 +54,21 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
     setPaymentMethod,
     setOrderId,
     setBookingStatus,
+    setServiceModel,
+    fetchEstimate,
     isEstimating,
   } = booking;
 
   const activeVehicleId = selectedVehicleId ?? vehicleCategoryId;
+
+  useEffect(() => {
+    if (distanceKm <= 0) return;
+    if (!serviceModelId) {
+      setServiceModel('economy');
+    } else if (estimatedPrice === 0) {
+      fetchEstimate(serviceModelId);
+    }
+  }, [distanceKm, serviceModelId, estimatedPrice, setServiceModel, fetchEstimate]);
 
   const categoryName = useMemo(() => {
     const oldCat = VEHICLE_CATEGORIES.find((v) => v.id === activeVehicleId);

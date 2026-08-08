@@ -8,6 +8,7 @@ import { RootStackParamList } from '../navigation/types';
 import { moderateScale } from '../utils/responsive';
 import { getUserOrders } from '../services/authService';
 import { formatCurrencyDisplay } from '../utils/mappers';
+import { useAuthStore } from '../store/authStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MyDeliveries'>;
 
@@ -24,18 +25,19 @@ interface OrderItem {
 }
 
 const MyDeliveriesScreen = ({ navigation }: Props) => {
+  const phone = useAuthStore((s) => s.phone);
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('completed');
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<OrderItem[]>([]);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [phone]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const res = await getUserOrders();
+      const res = await getUserOrders(phone);
       if (res && res.orders) {
         setOrders(res.orders);
       }
@@ -99,7 +101,7 @@ const MyDeliveriesScreen = ({ navigation }: Props) => {
     <ScreenContainer scrollable={false} contentStyle={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Pressable onPress={() => navigation.navigate('CustomerHome', { openDrawer: true })} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </Pressable>
         <Text style={styles.headerTitle}>My Deliveries</Text>

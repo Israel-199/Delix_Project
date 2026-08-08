@@ -23,6 +23,7 @@ const MyProfileScreen = ({ navigation }: Props) => {
   const [middleName, setMiddleName] = useState(user?.middleName || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
   const [photoUri, setPhotoUri] = useState<string | null>(user?.profilePhotoUrl || null);
+  const [photoBase64, setPhotoBase64] = useState<string | undefined>(undefined);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,9 +44,10 @@ const MyProfileScreen = ({ navigation }: Props) => {
   }, [user]);
 
   const handlePickPhoto = async () => {
-    const uri = await pickImage();
-    if (uri) {
-      setPhotoUri(uri);
+    const result = await pickImage();
+    if (result) {
+      setPhotoUri(result.uri);
+      setPhotoBase64(result.base64);
     }
   };
 
@@ -74,7 +76,7 @@ const MyProfileScreen = ({ navigation }: Props) => {
     try {
       let cloudinaryUrl = photoUri;
       if (photoUri && !photoUri.startsWith('http')) {
-        cloudinaryUrl = await uploadImageToCloudinary(photoUri);
+        cloudinaryUrl = await uploadImageToCloudinary(photoUri, photoBase64);
       }
 
       await updateProfile({
@@ -103,7 +105,7 @@ const MyProfileScreen = ({ navigation }: Props) => {
     <ScreenContainer avoidKeyboard scrollable contentStyle={styles.container}>
       {/* Header Navigation */}
       <View style={styles.headerRow}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Pressable onPress={() => navigation.navigate('CustomerHome', { openDrawer: true })} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </Pressable>
         <Text style={styles.headerTitle}>My Profile</Text>

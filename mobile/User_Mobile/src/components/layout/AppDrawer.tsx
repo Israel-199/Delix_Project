@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../../design-system';
 import { fontFamilies } from '../../theme/typography';
 import { RootStackParamList } from '../../navigation/types';
@@ -22,16 +23,16 @@ type DrawerItemId = 'profile' | 'deliveries' | 'notifications' | 'help' | 'about
 interface DrawerItemConfig {
   id: DrawerItemId;
   label: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   targetScreen: keyof RootStackParamList;
 }
 
 const DRAWER_ITEMS: DrawerItemConfig[] = [
-  { id: 'profile', label: 'My Profile', icon: '👤', targetScreen: 'MyProfile' },
-  { id: 'deliveries', label: 'My Deliveries', icon: '📦', targetScreen: 'MyDeliveries' },
-  { id: 'notifications', label: 'Notifications', icon: '🔔', targetScreen: 'Notifications' },
-  { id: 'help', label: 'Help & Support', icon: '💬', targetScreen: 'HelpSupport' },
-  { id: 'about', label: 'About Delix', icon: 'ℹ️', targetScreen: 'About' },
+  { id: 'profile', label: 'My Profile', icon: 'person-outline', targetScreen: 'MyProfile' },
+  { id: 'deliveries', label: 'My Deliveries', icon: 'cube-outline', targetScreen: 'MyDeliveries' },
+  { id: 'notifications', label: 'Notifications', icon: 'notifications-outline', targetScreen: 'Notifications' },
+  { id: 'help', label: 'Help & Support', icon: 'help-circle-outline', targetScreen: 'HelpSupport' },
+  { id: 'about', label: 'About Delix', icon: 'information-circle-outline', targetScreen: 'About' },
 ];
 
 interface AppDrawerProps {
@@ -46,9 +47,11 @@ export const AppDrawer = ({ visible, onClose }: AppDrawerProps) => {
   const resetBooking = useBookingStore((s) => s.reset);
   const phone = useAuthStore((s) => s.phone);
 
+  const [activeTab, setActiveTab] = useState<DrawerItemId | null>(null);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
-  const handleNavigate = (screenName: keyof RootStackParamList) => {
+  const handleNavigate = (itemId: DrawerItemId, screenName: keyof RootStackParamList) => {
+    setActiveTab(itemId);
     onClose();
     navigation.navigate(screenName as any);
   };
@@ -101,23 +104,46 @@ export const AppDrawer = ({ visible, onClose }: AppDrawerProps) => {
           </View>
 
           {/* Drawer Menu Items */}
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {DRAWER_ITEMS.map((item) => (
-              <Pressable
-                key={item.id}
-                style={styles.item}
-                onPress={() => handleNavigate(item.targetScreen)}
-              >
-                <Text style={styles.itemIcon}>{item.icon}</Text>
-                <Text style={styles.itemLabel}>{item.label}</Text>
-              </Pressable>
-            ))}
-
-            <Pressable style={[styles.item, styles.logoutItem]} onPress={handleLogoutPress}>
-              <Text style={styles.itemIcon}>🚪</Text>
-              <Text style={[styles.itemLabel, styles.logoutLabel]}>Logout</Text>
-            </Pressable>
+          <ScrollView style={styles.menuContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.itemList}>
+              {DRAWER_ITEMS.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={[styles.item, isActive && styles.itemActive]}
+                    android_ripple={{ color: 'rgba(255, 102, 0, 0.15)', borderless: false }}
+                    onPress={() => handleNavigate(item.id, item.targetScreen)}
+                  >
+                    <View style={styles.iconBox}>
+                      <Ionicons
+                        name={item.icon}
+                        size={22}
+                        color={isActive ? colors.primary : colors.textSecondary}
+                      />
+                    </View>
+                    <Text style={[styles.itemLabel, isActive && styles.itemLabelActive]}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </ScrollView>
+
+          {/* Bottom Logout Button */}
+          <View style={styles.logoutContainer}>
+            <Pressable
+              style={styles.logoutItem}
+              android_ripple={{ color: 'rgba(239, 68, 68, 0.15)' }}
+              onPress={handleLogoutPress}
+            >
+              <View style={styles.iconBox}>
+                <Ionicons name="log-out-outline" size={22} color={colors.error} />
+              </View>
+              <Text style={styles.logoutLabel}>Logout</Text>
+            </Pressable>
+          </View>
         </Pressable>
       </Pressable>
 
@@ -162,10 +188,11 @@ const styles = StyleSheet.create({
   },
   panel: {
     width: '80%',
+    height: '100%',
     backgroundColor: colors.background,
     paddingTop: spacing.xl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
     shadowColor: colors.shadow,
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.15,
@@ -173,15 +200,15 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   header: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     paddingBottom: spacing.sm,
     borderBottomWidth: 1,
     borderColor: colors.divider,
   },
   brandImage: { 
-    width: moderateScale(110),
-    height: moderateScale(65),
-    alignSelf: 'center',
+    width: moderateScale(100),
+    height: moderateScale(105),
+    
     marginBottom: spacing.xxs,
   },
   userRow: {
@@ -227,29 +254,54 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
+  menuContainer: {
+    flex: 1,
+  },
+  itemList: {
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.lg,
   },
-  itemIcon: {
-    fontSize: moderateScale(20),
-    width: 28,
+  itemActive: {
+    backgroundColor: 'rgba(255, 102, 0, 0.12)',
+  },
+  iconBox: {
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.xs,
   },
   itemLabel: {
     fontFamily: fontFamilies.semibold,
     fontSize: moderateScale(15),
     color: colors.textPrimary,
   },
-  logoutItem: {
-    marginTop: spacing.lg,
+  itemLabelActive: {
+    fontFamily: fontFamilies.bold,
+    color: colors.primary,
+  },
+  logoutContainer: {
     borderTopWidth: 1,
     borderColor: colors.divider,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.md,
+  },
+  logoutItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.lg,
   },
   logoutLabel: {
     fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(15),
     color: colors.error,
   },
   modalOverlay: {
@@ -317,4 +369,5 @@ const styles = StyleSheet.create({
 });
 
 export default AppDrawer;
+
 

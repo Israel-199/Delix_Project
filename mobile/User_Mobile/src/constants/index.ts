@@ -26,7 +26,6 @@ export { API_BASE_URL, SOCKET_URL } from '../config/api';
 
 export const BASE_RATE_ETB_PER_KM = 150;
 
-export { RECENT_LOCATIONS } from './locations';
 export type { RecentLocation } from './locations';
 export { CARGO_CATEGORIES, CARGO_TYPE_CATEGORIES } from './cargo';
 export type { CargoCategory, CargoCategoryId } from './cargo';

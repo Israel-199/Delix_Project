@@ -3,8 +3,8 @@ export type RootStackParamList = {
   Login: undefined;
   OtpVerification: { phone: string };
   ProfileSetup: undefined;
-  CustomerHome: undefined;
-  MapBooking: undefined;
+  LocationPermission: undefined;
+  CustomerHome: { openDrawer?: true } | undefined;
   VehicleDetails: { vehicleId: string };
   CargoInfo: undefined;
   BookingSummary: undefined;

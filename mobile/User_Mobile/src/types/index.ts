@@ -109,6 +109,7 @@ export interface MapMarkerData {
   label?: string;
   type?: 'user' | 'pickup' | 'destination' | 'driver';
   vehicleCategory?: VehicleCategoryId;
+  etaMinutes?: number;
 }
 
 export interface NearbyDriver {

@@ -63,7 +63,7 @@ export const typography = {
 
   /** Delix UI reference tokens */
   brand: type(30, 'extrabold', colors.primary),
-  whereTo: type(24, 'bold'),
+  whereTo: type(16, 'medium'),
   locationLabel: type(20, 'semibold'),
   vehicleName: type(16, 'medium'),
   addressTitle: type(18, 'medium'),

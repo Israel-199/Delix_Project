@@ -79,7 +79,7 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
       // Wait, verifyAndLogin inside authStore could return something. Let's just check useAuthStore.getState().user later?
       // Since it's zustand, we can check useAuthStore.getState().user inside handleVerify!
       const user = useAuthStore.getState().user;
-      if (user && user.name !== 'Delix User' && user.name.trim() !== '') {
+      if (user?.isProfileComplete) {
         navigation.replace('CustomerHome');
       } else {
         navigation.replace('ProfileSetup');

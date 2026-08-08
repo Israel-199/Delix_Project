@@ -145,21 +145,15 @@ export const getServiceModelsForCategory = (categoryId: VehicleCategoryId): Serv
   ];
 };
 
+/** Client-side fallback when backend estimate is unavailable. Matches 300 + 90×km. */
 export const calculatePrice = (
   distanceKm: number,
   serviceModelId: ServiceModel['id'],
-  isDjibouti = false
+  _isDjibouti = false
 ): { price: number; currency: string } => {
   const multiplier = MODEL_MULTIPLIERS[serviceModelId as keyof typeof MODEL_MULTIPLIERS] ?? 1;
-  let price = Math.round(distanceKm * BASE_RATE_ETB_PER_KM * multiplier);
-  let currency = 'Br';
-
-  if (isDjibouti) {
-    price = Math.round(price * 3.15);
-    currency = 'DJF';
-  }
-
-  return { price, currency };
+  const price = Math.round((300 + distanceKm * 90) * multiplier);
+  return { price, currency: 'Br' };
 };
 
 export const getServiceModelKey = (categoryId: VehicleCategoryId, modelId: ServiceModel['id']) =>

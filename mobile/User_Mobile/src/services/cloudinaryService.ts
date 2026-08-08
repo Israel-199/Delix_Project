@@ -1,58 +1,63 @@
 import * as ImagePicker from 'expo-image-picker';
 
-const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
-const API_KEY = process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY || '';
-// In a true production app, use signed uploads via a backend.
-// For this frontend implementation with the API secret, we would theoretically sign it.
-// However, the best approach on frontend is using an 'upload_preset'.
-const UPLOAD_PRESET = 'delix_preset'; // Replace with a Cloudinary unsigned upload preset if available
+import { API_BASE_URL } from '../config/api';
+
+export interface PickedImageResult {
+  uri: string;
+  base64?: string;
+}
 
 /**
- * Uploads an image to Cloudinary using unsigned upload.
+ * Uploads an image via the backend proxy.
+ * Supports file URI upload as well as base64 fallback.
  */
-export const uploadImageToCloudinary = async (imageUri: string): Promise<string> => {
-  if (!CLOUD_NAME) {
-    throw new Error('Cloudinary cloud name is not configured in .env');
-  }
-
-  const formData = new FormData();
-  
-  // Extract file extension and type
-  const uriParts = imageUri.split('.');
-  const fileType = uriParts[uriParts.length - 1];
-  
-  formData.append('file', {
-    uri: imageUri,
-    name: `photo.${fileType}`,
-    type: `image/${fileType}`,
-  } as any);
-
-  // You can also use an unsigned upload preset here
-  formData.append('upload_preset', UPLOAD_PRESET);
-  // formData.append('api_key', API_KEY); // Re-enable if using signed uploads
-
+export const uploadImageToCloudinary = async (imageUri: string, base64?: string): Promise<string> => {
   try {
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-      {
+    // If base64 is available, upload directly via clean JSON payload
+    if (base64) {
+      const response = await fetch(`${API_BASE_URL}/upload`, {
         method: 'POST',
-        body: formData,
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ image: base64 }),
+      });
+
+      const data = await response.json();
+      if (data.secure_url) {
+        return data.secure_url;
       }
-    );
+    }
+
+    // Otherwise use FormData (note: DO NOT set Content-Type header manually in RN fetch)
+    const formData = new FormData();
+    const uriParts = imageUri.split('.');
+    const fileType = uriParts[uriParts.length - 1] || 'jpg';
+    
+    formData.append('file', {
+      uri: imageUri,
+      name: `photo.${fileType}`,
+      type: `image/${fileType}`,
+    } as any);
+
+    const response = await fetch(`${API_BASE_URL}/upload`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
 
     const data = await response.json();
 
     if (data.secure_url) {
       return data.secure_url;
     } else {
-      throw new Error(data.error?.message || 'Upload failed');
+      throw new Error(data.error || 'Upload failed');
     }
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
+    console.error('Backend upload error:', error);
     throw error;
   }
 };
@@ -60,7 +65,7 @@ export const uploadImageToCloudinary = async (imageUri: string): Promise<string>
 /**
  * Helper to pick an image from the library
  */
-export const pickImage = async (): Promise<string | null> => {
+export const pickImage = async (): Promise<PickedImageResult | null> => {
   const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
   if (permissionResult.granted === false) {
@@ -73,10 +78,15 @@ export const pickImage = async (): Promise<string | null> => {
     allowsEditing: true,
     aspect: [1, 1],
     quality: 0.7,
+    base64: true,
   });
 
   if (!result.canceled && result.assets && result.assets.length > 0) {
-    return result.assets[0].uri;
+    const asset = result.assets[0];
+    return {
+      uri: asset.uri,
+      base64: asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : undefined,
+    };
   }
 
   return null;

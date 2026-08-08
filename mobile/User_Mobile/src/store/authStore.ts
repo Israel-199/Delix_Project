@@ -144,8 +144,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           user: { phone, name: 'Delix User', role: 'CUSTOMER' },
         });
 
-        // Background fetch to hydrate profile details like photo and name
-        get().fetchProfile();
+        // Fetch to hydrate profile details like photo and name, await to ensure completion before returning
+        await get().fetchProfile();
       }
     } finally {
       set({ isHydrated: true });

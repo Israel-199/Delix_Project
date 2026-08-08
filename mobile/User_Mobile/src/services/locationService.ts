@@ -26,6 +26,15 @@ const toLocationPoint = (position: Location.LocationObject): LocationPoint => ({
   accuracy: position.coords.accuracy ?? undefined,
 });
 
+export const hasLocationPermission = async (): Promise<boolean> => {
+  try {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+};
+
 export const requestUserLocation = async (): Promise<LocationPoint | null> => {
   try {
     const servicesEnabled = await Location.hasServicesEnabledAsync();

@@ -6,7 +6,7 @@ import CustomerHomeScreen from '../screens/CustomerHomeScreen';
 import DeliveryCompletedScreen from '../screens/DeliveryCompletedScreen';
 import DriverTrackingScreen from '../screens/DriverTrackingScreen';
 import LoginScreen from '../screens/LoginScreen';
-import MapBookingScreen from '../screens/MapBookingScreen';
+import LocationPermissionScreen from '../screens/LocationPermissionScreen';
 import OtpVerificationScreen from '../screens/OtpVerificationScreen';
 import ProfileSetupScreen from '../screens/ProfileSetupScreen';
 import SplashScreen from '../screens/SplashScreen';
@@ -29,8 +29,8 @@ const RootNavigator = () => (
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
     <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+    <Stack.Screen name="LocationPermission" component={LocationPermissionScreen} />
     <Stack.Screen name="CustomerHome" component={CustomerHomeScreen} />
-    <Stack.Screen name="MapBooking" component={MapBookingScreen} />
     <Stack.Screen name="VehicleDetails" component={VehicleDetailsScreen} />
     <Stack.Screen name="CargoInfo" component={CargoInfoScreen} />
     <Stack.Screen name="BookingSummary" component={BookingSummaryScreen} />

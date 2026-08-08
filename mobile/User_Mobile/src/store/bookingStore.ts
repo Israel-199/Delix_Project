@@ -46,7 +46,10 @@ interface BookingState {
   setRoute: (
     pickup: string,
     destination: string,
-    options?: { destinationCoordinate?: LocationPoint | null }
+    options?: {
+      destinationCoordinate?: LocationPoint | null;
+      pickupCoordinate?: LocationPoint | null;
+    }
   ) => void;
   setPickupLabel: (pickup: string) => void;
   setUserCoordinate: (coordinate: LocationPoint) => void;
@@ -77,10 +80,8 @@ interface BookingState {
   reset: () => void;
 }
 
-const DEFAULT_PICKUP = 'BL-03-505 Street, Bole';
-
 const initialState = {
-  pickupLocation: DEFAULT_PICKUP,
+  pickupLocation: '',
   destination: '',
   pickupCoordinate: null as LocationPoint | null,
   destinationCoordinate: null as LocationPoint | null,
@@ -91,8 +92,8 @@ const initialState = {
   vehicleCategoryId: 'lada' as VehicleCategoryId,
   selectedVehicleId: null as VehicleCategoryId | null,
   serviceModelId: null as ServiceModelId | null,
-  distanceKm: 5.2,
-  travelEta: '14 min',
+  distanceKm: 0,
+  travelEta: '',
   arrivalLabel: '',
   arrivalTime: '',
   paymentMethod: 'cash' as PaymentMethodId,
@@ -129,7 +130,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       serviceModelId: null,
       estimateError: null,
       routeCoordinates: [],
-      pickupCoordinate: null,
+      pickupCoordinate: options?.pickupCoordinate ?? null,
       destinationCoordinate: options?.destinationCoordinate ?? null,
       arrivalLabel: '',
       arrivalTime: '',

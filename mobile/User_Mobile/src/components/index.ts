@@ -5,6 +5,7 @@ export { ServiceModelCard, type ServiceModelCardProps } from './cards/ServiceMod
 export { RouteSummaryRow } from './cards/RouteSummaryRow';
 export { BottomSheet, InlineBottomSheet, type BottomSheetProps, type InlineBottomSheetProps } from './sheets/BottomSheet';
 export { MapContainer, type MapContainerProps } from './map/MapContainer';
+export { HomeLiveMapCard } from './map/HomeLiveMapCard';
 export { DelixInput, type DelixInputProps } from './inputs/DelixInput';
 export { SearchInput, HomeSearchBar, type SearchInputProps } from './inputs/SearchInput';
 export { PhoneInput, validatePhone, formatPhone, type PhoneInputProps } from './inputs/PhoneInput';

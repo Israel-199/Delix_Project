@@ -20,12 +20,31 @@ export const disconnectSocket = () => {
   }
 };
 
+export const joinOrderRoom = (orderId: string) => {
+  getSocket().emit('join_order', { orderId });
+};
+
+export const leaveOrderRoom = (orderId: string) => {
+  getSocket().emit('leave_order', { orderId });
+};
+
 export const emitCargoDeliveryRequest = (orderData: Record<string, unknown>) => {
   getSocket().emit('request_cargo_delivery', orderData);
 };
 
+export const emitOrderCompleted = (orderId: string) => {
+  getSocket().emit('order_completed', { orderId });
+};
+
 export const onOrderStatusChanged = (
-  handler: (payload: { orderId?: string; status: string; driverId?: string }) => void
+  handler: (payload: {
+    orderId?: string;
+    status: string;
+    driverId?: string;
+    driverName?: string;
+    plateNumber?: string;
+    vehicleType?: string;
+  }) => void
 ) => {
   getSocket().on('order_status_changed', handler);
   return () => {
@@ -39,6 +58,7 @@ export const onLiveDriverMoved = (
     lat: number;
     lng: number;
     vehicleType?: string;
+    orderId?: string;
   }) => void
 ) => {
   getSocket().on('live_driver_moved', handler);

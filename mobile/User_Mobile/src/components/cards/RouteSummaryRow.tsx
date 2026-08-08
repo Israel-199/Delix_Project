@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../design-system';
 import { typography } from '../../theme/typography';
 
@@ -18,12 +19,16 @@ export const RouteSummaryRow = ({
 }: RouteSummaryRowProps) => (
   <View style={styles.container}>
     <View style={styles.row}>
-      <View style={styles.dotPickup} />
+      <View style={styles.iconWrap}>
+        <Ionicons name="ellipse" size={12} color={colors.primary} />
+      </View>
       <Text style={styles.pickupText} numberOfLines={1}>{pickup}</Text>
     </View>
     <View style={styles.connector} />
     <View style={styles.row}>
-      <View style={styles.dotDest} />
+      <View style={styles.iconWrap}>
+        <Ionicons name="location-sharp" size={18} color={colors.success} />
+      </View>
       <Text style={styles.destText} numberOfLines={1}>{destination}</Text>
       {arrivalTime ? (
         <View style={styles.arrivalBadge}>
@@ -48,6 +53,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  iconWrap: {
+    width: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dotPickup: {
     width: 10,
     height: 10,
@@ -64,7 +74,7 @@ const styles = StyleSheet.create({
     width: 2,
     height: 14,
     backgroundColor: colors.border,
-    marginLeft: 4,
+    marginLeft: 9,
     marginVertical: 2,
   },
   pickupText: {
@@ -91,3 +101,4 @@ const styles = StyleSheet.create({
 });
 
 export default RouteSummaryRow;
+

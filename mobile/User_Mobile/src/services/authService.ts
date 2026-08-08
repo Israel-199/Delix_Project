@@ -50,7 +50,10 @@ export const getUserProfile = async (): Promise<{ success: boolean; user: any }>
   return apiClient.get<{ success: boolean; user: any }>('/users/profile');
 };
 
-export const getUserOrders = async (): Promise<{ success: boolean; orders: any[] }> => {
-  return apiClient.get<{ success: boolean; orders: any[] }>('/users/orders');
+export const getUserOrders = async (
+  phone?: string | null
+): Promise<{ success: boolean; orders: any[] }> => {
+  const query = phone ? `?customerId=${encodeURIComponent(phone)}` : '';
+  return apiClient.get<{ success: boolean; orders: any[] }>(`/users/orders${query}`);
 };
 
