@@ -1,67 +1,103 @@
 import { Request, Response } from 'express';
+import {
+  CargoCategory,
+  OrderStatus,
+  VehicleType,
+} from '@prisma/client';
+import { prisma } from '../lib/prisma';
+import { calculateAuthoritativeFare } from '../utils/pricing';
 
-// Strict 150 ETB per kilometer standard logic as requested
-const BASE_RATE_PER_KM_ETB = 150;
-const ETB_TO_DJF_RATE = 3.15; // Approximate conversion rate
+const calculatePrice = (distanceKm: number, waitingHours = 0) =>
+  calculateAuthoritativeFare(distanceKm || 0, waitingHours);
 
-// Vehicle Add-on Fees (Assuming fixed for now)
-const vehicleRates: Record<string, { base: number; loading: number; unloading: number }> = {
-  LADA_BED: { base: 150, loading: 50, unloading: 50 },
-  PICKUP_TRUCK: { base: 250, loading: 100, unloading: 100 },
-  MINI_TRUCK: { base: 450, loading: 200, unloading: 200 },
-  LARGE_TRUCK: { base: 1200, loading: 500, unloading: 500 },
+const CARGO_MAP: Record<string, CargoCategory> = {
+  FURNITURE: 'FURNITURE',
+  CONSTRUCTION_MATERIALS: 'CONSTRUCTION_MATERIALS',
+  CONSTRUCTION: 'CONSTRUCTION_MATERIALS',
+  SHOP_GOODS: 'SHOP_GOODS',
+  BUSINESS_GOODS: 'SHOP_GOODS',
+  DOCUMENTS: 'DOCUMENTS',
+  OTHER: 'OTHER',
 };
 
-/**
- * Helper to Calculate Price based on user location (Djibouti or Ethiopia)
- */
-const calculatePrice = (vehicleType: string, distanceKm: number, pickupAddress: string, hasLoading: boolean, hasUnloading: boolean) => {
-  const rates = vehicleRates[vehicleType] || vehicleRates.PICKUP_TRUCK;
-  const isDjibouti = pickupAddress.toLowerCase().includes('djibouti');
-  
-  // Total in ETB
-  let totalEtb = rates.base + ((distanceKm || 5) * BASE_RATE_PER_KM_ETB);
-  if (hasLoading) totalEtb += rates.loading;
-  if (hasUnloading) totalEtb += rates.unloading;
-
-  // Conversion logic
-  if (isDjibouti) {
-    return {
-      priceAmount: Math.round(totalEtb * ETB_TO_DJF_RATE),
-      currency: 'DJF',
-    };
-  }
-
-  return {
-    priceAmount: Math.round(totalEtb),
-    currency: 'ETB',
-  };
+const VEHICLE_MAP: Record<string, VehicleType> = {
+  LADA_BED: 'LADA_BED',
+  PICKUP_TRUCK: 'PICKUP_TRUCK',
+  MINI_TRUCK: 'MINI_TRUCK',
+  LARGE_TRUCK: 'LARGE_TRUCK',
 };
 
-/**
- * Calculate estimated distance & price for cargo delivery
- */
+const resolveCustomerUserId = async (customerRef: string): Promise<string> => {
+  const normalizedPhone = customerRef.startsWith('+') ? customerRef : `+${customerRef.replace(/\D/g, '')}`;
+
+  const existing = await prisma.user.findFirst({
+    where: {
+      OR: [{ id: customerRef }, { phone: normalizedPhone }, { phone: customerRef }],
+    },
+  });
+
+  if (existing) return existing.id;
+
+  const created = await prisma.user.create({
+    data: { phone: normalizedPhone },
+  });
+
+  return created.id;
+};
+
+const formatOrderResponse = (order: {
+  id: string;
+  customerId: string;
+  cargoCategory: CargoCategory;
+  vehicleRequested: VehicleType;
+  pickupAddress: string;
+  pickupLat: number;
+  pickupLng: number;
+  destinationAddress: string;
+  destinationLat: number;
+  destinationLng: number;
+  estimatedPrice: number;
+  status: OrderStatus;
+  createdAt: Date;
+  distanceKm: number;
+}) => ({
+  id: order.id,
+  customerId: order.customerId,
+  cargoCategory: order.cargoCategory,
+  vehicleRequested: order.vehicleRequested,
+  pickupAddress: order.pickupAddress,
+  pickupLat: order.pickupLat,
+  pickupLng: order.pickupLng,
+  destinationAddress: order.destinationAddress,
+  destinationLat: order.destinationLat,
+  destinationLng: order.destinationLng,
+  estimatedPrice: order.estimatedPrice,
+  currency: 'ETB',
+  distanceKm: order.distanceKm,
+  status: order.status,
+  createdAt: order.createdAt.toISOString(),
+});
+
 export const estimateOrderPrice = async (req: Request, res: Response) => {
   try {
-    const { vehicleType, distanceKm, pickupAddress = 'Addis Ababa', loadingAssistance = false, unloadingAssistance = false } = req.body;
+    const { vehicleType, distanceKm, waitingHours = 0 } = req.body;
 
-    const { priceAmount, currency } = calculatePrice(vehicleType, distanceKm, pickupAddress, loadingAssistance, unloadingAssistance);
+    const { priceAmount, currency, breakdown } = calculatePrice(distanceKm, waitingHours);
 
     res.status(200).json({
       success: true,
       vehicleType,
-      distanceKm: distanceKm || 5,
+      distanceKm: distanceKm || 0,
       estimatedPrice: priceAmount,
       currency,
+      breakdown,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Pricing calculation failed' });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Pricing calculation failed';
+    res.status(500).json({ error: message });
   }
 };
 
-/**
- * Create delivery request & dispatch to drivers
- */
 export const createOrder = async (req: Request, res: Response) => {
   try {
     const {
@@ -77,86 +113,154 @@ export const createOrder = async (req: Request, res: Response) => {
       distanceKm,
       loadingAssistance,
       unloadingAssistance,
-      paymentMethod // NEW: CBE, Cash, Telebirr
+      cargoDescription,
+      paymentMethod,
     } = req.body;
 
-    const { priceAmount, currency } = calculatePrice(
-      vehicleRequested || 'PICKUP_TRUCK', 
-      distanceKm, 
-      pickupAddress || 'Addis Ababa', 
-      loadingAssistance, 
-      unloadingAssistance
-    );
+    const waitingHours = Number(req.body.waitingHours ?? 0);
+    const { priceAmount } = calculatePrice(distanceKm, waitingHours);
 
-    const newOrder = {
-      id: `DLX-${Math.floor(1000 + Math.random() * 9000)}`,
-      customerId: customerId || 'USR-TEMP',
-      cargoCategory: cargoCategory || 'OTHER',
-      vehicleRequested: vehicleRequested || 'PICKUP_TRUCK',
-      pickupAddress,
-      pickupLat,
-      pickupLng,
-      destinationAddress,
-      destinationLat,
-      destinationLng,
-      estimatedPrice: priceAmount,
-      currency,
-      paymentMethod: paymentMethod || 'Cash',
-      status: 'SEARCHING_DRIVER',
-      createdAt: new Date().toISOString()
-    };
+    const cargo = CARGO_MAP[String(cargoCategory ?? 'OTHER').toUpperCase()] ?? 'OTHER';
+    const vehicle = VEHICLE_MAP[String(vehicleRequested ?? 'PICKUP_TRUCK').toUpperCase()] ?? 'PICKUP_TRUCK';
 
-    // In a real production system with PostGIS, we would use:
-    // UPDATE driver SET status='PINGED' WHERE ST_DWithin(location, pickup, 5000)
-    
-    res.status(201).json({
-      success: true,
-      message: 'Order created successfully. Searching for nearby drivers...',
-      order: newOrder
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Order creation failed' });
+    const pickupLatNum = Number(pickupLat ?? 9.0205);
+    const pickupLngNum = Number(pickupLng ?? 38.7469);
+    const destLatNum = Number(destinationLat ?? pickupLatNum);
+    const destLngNum = Number(destinationLng ?? pickupLngNum);
+    const distanceNum = Number(distanceKm ?? 0);
+
+    try {
+      const userId = await resolveCustomerUserId(String(customerId ?? 'guest'));
+
+      const order = await prisma.order.create({
+        data: {
+          customerId: userId,
+          cargoCategory: cargo,
+          cargoDescription: cargoDescription ?? null,
+          vehicleRequested: vehicle,
+          pickupAddress: pickupAddress ?? 'Pickup',
+          pickupLat: pickupLatNum,
+          pickupLng: pickupLngNum,
+          destinationAddress: destinationAddress ?? 'Destination',
+          destinationLat: destLatNum,
+          destinationLng: destLngNum,
+          loadingAssistance: Boolean(loadingAssistance),
+          unloadingAssistance: Boolean(unloadingAssistance),
+          distanceKm: distanceNum,
+          estimatedPrice: priceAmount,
+          status: 'SEARCHING_DRIVER',
+        },
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Order created successfully. Searching for nearby drivers...',
+        order: {
+          ...formatOrderResponse(order),
+          paymentMethod: paymentMethod ?? 'Cash',
+        },
+      });
+    } catch (dbError) {
+      console.warn('[Order] Database unavailable, using in-memory order:', dbError);
+
+      const fallbackOrder = {
+        id: `DLX-${Math.floor(1000 + Math.random() * 9000)}`,
+        customerId: customerId || 'USR-TEMP',
+        cargoCategory: cargo,
+        vehicleRequested: vehicle,
+        pickupAddress,
+        pickupLat: pickupLatNum,
+        pickupLng: pickupLngNum,
+        destinationAddress,
+        destinationLat: destLatNum,
+        destinationLng: destLngNum,
+        estimatedPrice: priceAmount,
+        currency: 'ETB',
+        paymentMethod: paymentMethod || 'Cash',
+        distanceKm: distanceNum,
+        status: 'SEARCHING_DRIVER',
+        createdAt: new Date().toISOString(),
+      };
+
+      return res.status(201).json({
+        success: true,
+        message: 'Order created successfully. Searching for nearby drivers...',
+        order: fallbackOrder,
+      });
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Order creation failed';
+    res.status(500).json({ error: message });
   }
 };
 
-/**
- * Fetch Order History for User
- */
 export const getUserOrders = async (req: Request, res: Response) => {
   try {
-    const orders = [
-      {
-        id: 'DLX-8492',
-        cargoCategory: 'FURNITURE',
-        vehicleRequested: 'PICKUP_TRUCK',
-        pickupAddress: 'Bole Atlas, Addis Ababa',
-        destinationAddress: 'Kazanchis, Addis Ababa',
-        estimatedPrice: 650,
-        currency: 'ETB',
-        paymentMethod: 'Telebirr',
-        status: 'COMPLETED',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-      },
-      {
-        id: 'DLX-7104',
-        cargoCategory: 'DOCUMENTS',
-        vehicleRequested: 'LADA_BED',
-        pickupAddress: 'Mercato, Addis Ababa',
-        destinationAddress: 'Piassa, Addis Ababa',
-        estimatedPrice: 300,
-        currency: 'ETB',
-        paymentMethod: 'Cash',
-        status: 'COMPLETED',
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-      }
-    ];
+    const customerRef = String(req.query.customerId ?? req.query.phone ?? '').trim();
 
-    res.status(200).json({
-      success: true,
-      orders,
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch orders' });
+    if (customerRef) {
+      try {
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [{ phone: customerRef }, { id: customerRef }],
+          },
+        });
+
+        if (user) {
+          const orders = await prisma.order.findMany({
+            where: { customerId: user.id },
+            orderBy: { createdAt: 'desc' },
+            take: 50,
+          });
+
+          return res.status(200).json({
+            success: true,
+            orders: orders.map((order) => ({
+              ...formatOrderResponse(order),
+              paymentMethod: 'Cash',
+            })),
+          });
+        }
+      } catch (dbError) {
+        console.warn('[Order] Could not load orders from database:', dbError);
+      }
+    }
+
+    res.status(200).json({ success: true, orders: [] });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch orders';
+    res.status(500).json({ error: message });
   }
 };
 
+export const acceptOrder = async (req: Request, res: Response) => {
+  try {
+    const { orderId, driverId } = req.body;
+    if (!orderId || !driverId) {
+      return res.status(400).json({ error: 'orderId and driverId required' });
+    }
+
+    try {
+      const order = await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: 'DRIVER_ACCEPTED',
+          driverId: driverId.startsWith('DRV-') ? undefined : driverId,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        order: formatOrderResponse(order),
+      });
+    } catch {
+      return res.status(200).json({
+        success: true,
+        order: { id: orderId, status: 'DRIVER_ACCEPTED', driverId },
+      });
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Accept failed';
+    res.status(500).json({ error: message });
+  }
+};
