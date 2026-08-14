@@ -63,6 +63,9 @@ const verifyOtp = async (req, res) => {
                 }
             });
         }
+        if (userRecord.isBlocked) {
+            return res.status(403).json({ error: 'This account has been blocked. Contact Delix support.' });
+        }
         const fullNameParts = [userRecord.firstName, userRecord.middleName, userRecord.lastName].filter(Boolean);
         const fullName = fullNameParts.length > 0 ? fullNameParts.join(' ') : 'Delix User';
         res.status(200).json({

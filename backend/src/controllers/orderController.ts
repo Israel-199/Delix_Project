@@ -6,6 +6,7 @@ import {
 } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { assignDriverToOrderAtomic } from '../services/orderAssignmentService';
+import { calculateAuthoritativeFare } from '../utils/pricing';
 
 const calculatePrice = (distanceKm: number, waitingHours = 0) =>
   calculateAuthoritativeFare(distanceKm || 0, waitingHours);
