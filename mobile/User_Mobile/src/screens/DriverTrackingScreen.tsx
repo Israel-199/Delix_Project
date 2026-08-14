@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,12 @@ import {
   leaveOrderRoom,
   onLiveDriverMoved,
   onOrderStatusChanged,
+  onSocketConnectionState,
+  onSocketReconnect,
+  SocketConnectionState,
 } from '../services/socketService';
+import { fetchOrderById } from '../services/orderService';
+import { getAuthToken } from '../services/apiClient';
 import { useBookingStore } from '../store/bookingStore';
 import { MapMarkerData, VehicleCategoryId } from '../types';
 import { vehicleCategoryFromBackend } from '../utils/driverTracking';
@@ -51,7 +56,10 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
     : undefined;
 
   const isSearching = bookingStatus === 'searching';
-  const isAssigned = bookingStatus === 'driver_assigned' || bookingStatus === 'in_transit';
+  const noDrivers = bookingStatus === 'no_drivers';
+  const isAssigned =
+    bookingStatus === 'driver_assigned' ||
+    bookingStatus === 'in_transit';
 
   const userPoint = userCoordinate ?? pickupCoordinate;
   const destPoint = destinationCoordinate;
@@ -62,12 +70,56 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
   const [driverVehicle, setDriverVehicle] = useState<VehicleCategoryId>(vehicleCategoryId);
   const [driverName, setDriverName] = useState<string | null>(null);
   const [driverPlate, setDriverPlate] = useState<string | null>(null);
+  const [driverPhone, setDriverPhone] = useState<string | null>(null);
   const [assignedDriverId, setAssignedDriverId] = useState<string | null>(null);
+  const [socketState, setSocketState] = useState<SocketConnectionState>('connected');
+
+  const syncOrderFromBackend = useCallback(async () => {
+    const order = await fetchOrderById(orderId, getAuthToken());
+    if (!order) return;
+
+    if (order.status === 'SEARCHING_DRIVER') {
+      setBookingStatus('searching');
+      return;
+    }
+
+    if (order.status === 'DRIVER_ACCEPTED' || order.status === 'ARRIVED_PICKUP') {
+      setBookingStatus('driver_assigned');
+    } else if (order.status === 'IN_TRANSIT') {
+      setBookingStatus('in_transit');
+    } else if (order.status === 'COMPLETED') {
+      setBookingStatus('completed');
+      navigation.replace('DeliveryCompleted', { orderId });
+      return;
+    }
+
+    if (order.driverId) setAssignedDriverId(order.driverId);
+    if (order.driverName) setDriverName(order.driverName);
+    if (order.plateNumber) setDriverPlate(order.plateNumber);
+    if (order.driverPhone) setDriverPhone(order.driverPhone);
+    if (order.vehicleRequested) {
+      setDriverVehicle(vehicleCategoryFromBackend(order.vehicleRequested));
+    }
+  }, [orderId, setBookingStatus, navigation]);
+
+  useEffect(() => {
+    return onSocketConnectionState(setSocketState);
+  }, []);
 
   useEffect(() => {
     joinOrderRoom(orderId);
-    return () => leaveOrderRoom(orderId);
-  }, [orderId]);
+    void syncOrderFromBackend();
+
+    const unsubscribe = onSocketReconnect(() => {
+      joinOrderRoom(orderId);
+      void syncOrderFromBackend();
+    });
+
+    return () => {
+      unsubscribe();
+      leaveOrderRoom(orderId);
+    };
+  }, [orderId, syncOrderFromBackend]);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,14 +141,28 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
     const unsubscribe = onOrderStatusChanged((payload) => {
       if (payload.orderId && payload.orderId !== orderId) return;
 
+      if (payload.status === 'NO_DRIVERS_AVAILABLE') {
+        setBookingStatus('no_drivers');
+      }
+      if (payload.status === 'SEARCHING_DRIVER') {
+        setBookingStatus('searching');
+      }
       if (payload.status === 'DRIVER_ACCEPTED') {
         setBookingStatus('driver_assigned');
         if (payload.driverId) setAssignedDriverId(payload.driverId);
         if (payload.driverName) setDriverName(payload.driverName);
         if (payload.plateNumber) setDriverPlate(payload.plateNumber);
+        if (payload.driverPhone) setDriverPhone(payload.driverPhone);
         if (payload.vehicleType) {
           setDriverVehicle(vehicleCategoryFromBackend(payload.vehicleType));
         }
+      }
+      if (payload.status === 'ARRIVED_PICKUP') {
+        setBookingStatus('driver_assigned');
+        setDriverEta('Arrived');
+      }
+      if (payload.status === 'IN_TRANSIT') {
+        setBookingStatus('in_transit');
       }
       if (payload.status === 'DELIVERY_COMPLETED') {
         setBookingStatus('completed');
@@ -205,11 +271,19 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
         onBackPress={() => navigation.navigate('CustomerHome')}
       />
 
+      {socketState !== 'connected' && (
+        <View style={styles.reconnectBanner}>
+          <Text style={styles.reconnectText}>
+            {socketState === 'connecting' ? 'Reconnecting…' : 'Connection lost — retrying'}
+          </Text>
+        </View>
+      )}
+
       {isSearching && (
         <InlineBottomSheet contentStyle={styles.searchingContent} maxHeightRatio={0.38}>
-          <Text style={styles.searchingTitle}>Locating nearby driver...</Text>
+          <Text style={styles.searchingTitle}>Finding nearest driver...</Text>
           <Text style={styles.searchingSub}>
-            Notifying {category?.name} {model?.name} drivers near {pickupLocation}
+            Contacting the closest available {category?.name} {model?.name} near {pickupLocation}
           </Text>
           {destination ? (
             <Text style={styles.routeHint}>Route to {destination}</Text>
@@ -219,10 +293,28 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
         </InlineBottomSheet>
       )}
 
+      {noDrivers && (
+        <InlineBottomSheet contentStyle={styles.searchingContent} maxHeightRatio={0.42}>
+          <Text style={styles.noDriversTitle}>No drivers available</Text>
+          <Text style={styles.searchingSub}>
+            We could not find an online {category?.name ?? 'vehicle'} driver near {pickupLocation}.
+            Try again in a few minutes or choose a different vehicle type.
+          </Text>
+          <Text style={styles.orderRef}>Order {orderId}</Text>
+          <DelixButton
+            title="Back to Home"
+            onPress={() => navigation.navigate('CustomerHome')}
+            style={styles.retryBtn}
+          />
+        </InlineBottomSheet>
+      )}
+
       {isAssigned && (
         <InlineBottomSheet maxHeightRatio={0.38}>
           <View style={styles.driverHeader}>
-            <Text style={styles.driverTitle}>Driver is arriving!</Text>
+            <Text style={styles.driverTitle}>
+              {bookingStatus === 'in_transit' ? 'Delivery in progress' : 'Driver is arriving!'}
+            </Text>
             <View style={styles.etaBadge}>
               <Text style={styles.etaText}>{driverEta} away</Text>
             </View>
@@ -242,8 +334,13 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Call driver"
-              style={styles.phoneBtn}
-              onPress={() => Linking.openURL('tel:+251911234567')}
+              style={[styles.phoneBtn, !driverPhone && styles.phoneBtnDisabled]}
+              disabled={!driverPhone}
+              onPress={() => {
+                if (driverPhone) {
+                  Linking.openURL(`tel:${driverPhone.replace(/\s/g, '')}`);
+                }
+              }}
             >
               <Ionicons name="call" size={20} color={colors.primary} />
             </Pressable>
@@ -263,11 +360,34 @@ const DriverTrackingScreen = ({ navigation, route }: Props) => {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  reconnectBanner: {
+    position: 'absolute',
+    top: heightScale(56),
+    left: spacing.md,
+    right: spacing.md,
+    backgroundColor: colors.warningTint,
+    borderRadius: moderateScale(8),
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    zIndex: 10,
+  },
+  reconnectText: {
+    fontFamily: fontFamilies.semibold,
+    fontSize: moderateScale(13),
+    color: colors.warning,
+    textAlign: 'center',
+  },
   searchingContent: { alignItems: 'center', paddingVertical: spacing['2xl'] },
   searchingTitle: {
     fontFamily: fontFamilies.bold,
     fontSize: moderateScale(20),
     color: colors.textPrimary,
+  },
+  noDriversTitle: {
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(20),
+    color: colors.error,
+    textAlign: 'center',
   },
   searchingSub: {
     fontFamily: fontFamilies.medium,
@@ -296,6 +416,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     opacity: 0.5,
     marginTop: spacing.lg,
+  },
+  retryBtn: {
+    marginTop: spacing.lg,
+    alignSelf: 'stretch',
   },
   driverHeader: {
     flexDirection: 'row',
@@ -356,6 +480,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  phoneBtnDisabled: { opacity: 0.35 },
   phoneIcon: { fontSize: moderateScale(20) },
   completeBtn: { marginTop: spacing.lg },
   fallback: {

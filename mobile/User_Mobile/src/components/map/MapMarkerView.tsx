@@ -14,24 +14,31 @@ const getMarkerAnchor = (type?: MapMarkerData['type']) => {
 };
 
 /**
- * Custom map markers need tracksViewChanges enabled briefly so Android/iOS
- * actually rasterize the pin views (emoji + badges).
+ * Custom markers rasterize once; coordinate-only updates skip tracksViewChanges.
  */
-export const MapMarkerView = ({ marker }: MapMarkerViewProps) => {
+export const MapMarkerView = React.memo(({ marker }: MapMarkerViewProps) => {
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  const isLiveDriver = marker.type === 'driver';
 
   useEffect(() => {
     setTracksViewChanges(true);
-    const timer = setTimeout(() => setTracksViewChanges(false), 600);
+    const timer = setTimeout(() => setTracksViewChanges(false), 500);
     return () => clearTimeout(timer);
-  }, [
-    marker.id,
-    marker.type,
-    marker.label,
-    marker.vehicleCategory,
-    marker.coordinate.latitude,
-    marker.coordinate.longitude,
-  ]);
+  }, [marker.id]);
+
+  useEffect(() => {
+    if (isLiveDriver) return;
+    setTracksViewChanges(true);
+    const timer = setTimeout(() => setTracksViewChanges(false), 500);
+    return () => clearTimeout(timer);
+  }, [isLiveDriver, marker.label, marker.vehicleCategory]);
+
+  useEffect(() => {
+    if (!isLiveDriver) return;
+    setTracksViewChanges(true);
+    const timer = setTimeout(() => setTracksViewChanges(false), 400);
+    return () => clearTimeout(timer);
+  }, [isLiveDriver, marker.label, marker.vehicleCategory]);
 
   return (
     <Marker
@@ -43,6 +50,8 @@ export const MapMarkerView = ({ marker }: MapMarkerViewProps) => {
       <MapMarkerPin marker={marker} />
     </Marker>
   );
-};
+});
+
+MapMarkerView.displayName = 'MapMarkerView';
 
 export default MapMarkerView;

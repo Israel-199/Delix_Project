@@ -1,84 +1,123 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ScreenContainer } from '../components';
 import { colors, radius, spacing } from '../design-system';
 import { fontFamilies } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
+import { getUserNotifications, markNotificationRead, UserNotification } from '../services/authService';
+import { useAuthStore } from '../store/authStore';
 import { moderateScale } from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 
-interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  icon: string;
-  read: boolean;
-}
+const formatTime = (iso: string) => {
+  const date = new Date(iso);
+  const diffMs = Date.now() - date.getTime();
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  if (hours < 1) return 'Just now';
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString();
+};
 
-const SAMPLE_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'n1',
-    title: 'Welcome to Delix Logistics! 🚚',
-    message: 'Your account is active. Book your first cargo delivery across Ethiopia and Djibouti in just a few taps.',
-    time: '2 hours ago',
-    icon: '🎉',
-    read: false,
-  },
-  {
-    id: 'n2',
-    title: 'Instant Fare Calculation Active',
-    message: 'Transparent transparent pricing is enabled for all vehicle types including Pickups, Mini Trucks, and Heavy Duty trucks.',
-    time: '1 day ago',
-    icon: '⚡',
-    read: true,
-  },
-  {
-    id: 'n3',
-    title: 'Safety & Insurance Guarantee',
-    message: 'All goods shipped with Delix drivers are verified and monitored in real-time.',
-    time: '3 days ago',
-    icon: '🛡️',
-    read: true,
-  },
-];
+const notificationIcon = (type: string) => {
+  switch (type) {
+    case 'DRIVER_FOUND':
+      return '🚗';
+    case 'DRIVER_ARRIVED':
+      return '📍';
+    case 'TRIP_STARTED':
+      return '🛣️';
+    case 'DELIVERY_COMPLETED':
+      return '✅';
+    default:
+      return '📦';
+  }
+};
 
 const NotificationsScreen = ({ navigation }: Props) => {
-  const renderItem = ({ item }: { item: NotificationItem }) => (
-    <View style={[styles.card, !item.read && styles.unreadCard]}>
-      <View style={styles.iconBox}>
-        <Text style={styles.iconText}>{item.icon}</Text>
-      </View>
-      <View style={styles.contentBox}>
-        <View style={styles.titleRow}>
-          <Text style={styles.itemTitle}>{item.title}</Text>
-          <Text style={styles.timeText}>{item.time}</Text>
+  const phone = useAuthStore((s) => s.phone);
+  const [items, setItems] = useState<UserNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadNotifications = useCallback(async () => {
+    if (!phone) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getUserNotifications(phone);
+      setItems(res.notifications ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load notifications');
+    } finally {
+      setLoading(false);
+    }
+  }, [phone]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  const handlePress = async (item: UserNotification) => {
+    if (!phone || item.read) return;
+    try {
+      await markNotificationRead(item.id, phone);
+      setItems((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  const renderItem = ({ item }: { item: UserNotification }) => (
+    <Pressable onPress={() => handlePress(item)}>
+      <View style={[styles.card, !item.read && styles.unreadCard]}>
+        <View style={styles.iconBox}>
+          <Text style={styles.iconText}>{notificationIcon(item.type)}</Text>
         </View>
-        <Text style={styles.messageText}>{item.message}</Text>
+        <View style={styles.contentBox}>
+          <View style={styles.titleRow}>
+            <Text style={styles.itemTitle}>{item.title}</Text>
+            <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
+          </View>
+          <Text style={styles.messageText}>{item.message}</Text>
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 
   return (
     <ScreenContainer scrollable={false} contentStyle={styles.container}>
-      {/* Header */}
       <View style={styles.headerRow}>
-        <Pressable onPress={() => navigation.navigate('CustomerHome', { openDrawer: true })} style={styles.backButton}>
+        <Pressable
+          onPress={() => navigation.navigate('CustomerHome', { openDrawer: true })}
+          style={styles.backButton}
+        >
           <Text style={styles.backIcon}>←</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Notifications</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <FlatList
-        data={SAMPLE_NOTIFICATIONS}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <Text style={styles.emptyText}>Loading notifications…</Text>
+      ) : error ? (
+        <Text style={styles.errorText}>{error}</Text>
+      ) : items.length === 0 ? (
+        <Text style={styles.emptyText}>No notifications yet. Book a delivery to get updates.</Text>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </ScreenContainer>
   );
 };
@@ -116,6 +155,18 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: spacing['4xl'],
     gap: spacing.md,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: colors.textSecondary,
+    marginTop: spacing.xl,
+    fontFamily: fontFamilies.medium,
+  },
+  errorText: {
+    textAlign: 'center',
+    color: colors.error,
+    marginTop: spacing.xl,
+    fontFamily: fontFamilies.medium,
   },
   card: {
     flexDirection: 'row',

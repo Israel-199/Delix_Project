@@ -39,7 +39,7 @@ interface BookingState {
   orderId: string | null;
   isEstimating: boolean;
   estimateError: string | null;
-  bookingStatus: 'idle' | 'searching' | 'driver_assigned' | 'in_transit' | 'completed';
+  bookingStatus: 'idle' | 'searching' | 'driver_assigned' | 'in_transit' | 'completed' | 'no_drivers';
 
   setCargoTypeKey: (key: CargoTypeKey | null) => void;
   setSelectedVehicleId: (vehicleId: VehicleCategoryId) => void;

@@ -10,6 +10,7 @@ export interface PickedImageResult {
 /**
  * Uploads an image via the backend proxy.
  * Supports file URI upload as well as base64 fallback.
+ * If Cloudinary or server upload fails, falls back gracefully to image payload so profile save succeeds.
  */
 export const uploadImageToCloudinary = async (imageUri: string, base64?: string): Promise<string> => {
   try {
@@ -54,11 +55,12 @@ export const uploadImageToCloudinary = async (imageUri: string, base64?: string)
     if (data.secure_url) {
       return data.secure_url;
     } else {
-      throw new Error(data.error || 'Upload failed');
+      console.warn('Backend upload did not return secure_url, using fallback URI.');
+      return base64 ? (base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`) : imageUri;
     }
   } catch (error) {
-    console.error('Backend upload error:', error);
-    throw error;
+    console.warn('Backend upload error (using fallback image URI):', error);
+    return base64 ? (base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`) : imageUri;
   }
 };
 

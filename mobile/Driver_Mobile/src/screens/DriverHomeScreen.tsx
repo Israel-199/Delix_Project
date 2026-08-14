@@ -1,411 +1,693 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TouchableOpacity, 
-  ScrollView, 
-  SafeAreaView, 
-  StatusBar,
-  Switch,
-  Linking
-} from 'react-native';
-import io from 'socket.io-client';
-import MapView, { Polyline } from 'react-native-maps';
-import * as Location from 'expo-location';
-import { widthScale, heightScale, moderateScale, SIZES } from '../utils/responsive';
-import DriverMapMarker from '../components/DriverMapMarker';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  fetchRoute,
-  orderDestination,
-  orderPickup,
-  vehicleIcon,
-  LatLng,
-} from '../utils/mapUtils';
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  Switch,
+  Linking,
+  Platform,
+  Alert,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import getSocket, {
+  registerDriverSocket,
+  emitDriverOffline,
+  joinOrderRoom,
+} from '../services/socketService';
+import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 
-import { SOCKET_URL } from '../config/api';
+import { AppDrawer } from '../components';
+import { DelixButton } from '../components/buttons/DelixButton';
+import { colors, radius, spacing } from '../design-system';
+import { fontFamilies, typography } from '../theme/typography';
+import { moderateScale } from '../utils/responsive';
+import DriverMapMarker from '../components/DriverMapMarker';
 
-const socket = io(SOCKET_URL);
-const DRIVER_ID = 'DVR-90812';
-const DRIVER_VEHICLE = 'MINI_TRUCK';
+import {
+  completeDriverTrip,
+  fetchDriverActiveOrder,
+  fetchDriverCycle,
+} from '../services/driverService';
+import { useDriverAuthStore } from '../store/authStore';
+import { DriverStackParamList } from '../navigation/types';
+
+const socket = getSocket();
+
+type TripStep = 'idle' | 'incoming_request' | 'accepted' | 'arrived_pickup' | 'in_transit' | 'completed';
+
+const orderStatusToStep = (status: string): TripStep | null => {
+  if (status === 'DRIVER_ACCEPTED') return 'accepted';
+  if (status === 'ARRIVED_PICKUP') return 'arrived_pickup';
+  if (status === 'IN_TRANSIT') return 'in_transit';
+  if (status === 'COMPLETED') return 'completed';
+  return null;
+};
+
+const openNavigation = (lat: number, lng: number, label: string) => {
+  const encoded = encodeURIComponent(label);
+  const url = Platform.select({
+    ios: `maps:0,0?q=${lat},${lng}(${encoded})`,
+    android: `geo:${lat},${lng}?q=${lat},${lng}(${encoded})`,
+    default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+  });
+  if (url) Linking.openURL(url);
+};
 
 const DriverHomeScreen = () => {
-  const mapRef = useRef<MapView>(null);
-  const didFitMap = useRef(false);
-  const [isOnline, setIsOnline] = useState(true);
-  const [activeStep, setActiveStep] = useState<'idle' | 'incoming_request' | 'accepted' | 'in_transit' | 'completed'>('idle');
-  const [completedTrips, setCompletedTrips] = useState(6);
-  const [currentOrder, setCurrentOrder] = useState<Record<string, unknown> | null>(null);
-  const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
-  const [driverCoord, setDriverCoord] = useState<LatLng>({ latitude: 9.0205, longitude: 38.7469 });
+  const navigation = useNavigation<NativeStackNavigationProp<DriverStackParamList>>();
+  const { driverId, plateNumber, vehicleType, name, phone } = useDriverAuthStore();
 
-  const pickupCoord = useMemo(() => orderPickup(currentOrder), [currentOrder]);
-  const destCoord = useMemo(() => orderDestination(currentOrder), [currentOrder]);
-  const orderVehicle = (currentOrder?.vehicleRequested as string) ?? DRIVER_VEHICLE;
+  const DRIVER_ID = driverId || phone || 'driver-guest';
+  const DRIVER_VEHICLE = vehicleType || 'MINI_TRUCK';
+
+  const mapRef = useRef<MapView>(null);
+  
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
+  const [activeStep, setActiveStep] = useState<TripStep>('idle');
+  
+  const [commissionBalance, setCommissionBalance] = useState(0);
+  const [paymentStatus, setPaymentStatus] = useState<'Paid' | 'Due' | 'Processing'>('Paid');
+  const [tripsCompleted, setTripsCompleted] = useState(0);
+
+  const [currentOrder, setCurrentOrder] = useState<any>(null);
+  const [driverCoord, setDriverCoord] = useState<{ latitude: number; longitude: number }>({ latitude: 9.0205, longitude: 38.7469 });
 
   useEffect(() => {
-    socket.on('incoming_delivery_alert', (orderData) => {
-      if (isOnline && activeStep === 'idle') {
-        setCurrentOrder(orderData);
-        setActiveStep('incoming_request');
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const coord = { latitude: location.coords.latitude, longitude: location.coords.longitude };
+      setDriverCoord(coord);
+
+      mapRef.current?.animateToRegion({
+        ...coord,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }, 1000);
+    })();
+  }, []);
+
+  const loadBackendState = async () => {
+    try {
+      const activeData = await fetchDriverActiveOrder(DRIVER_ID);
+      if (activeData?.order) {
+        setCurrentOrder(activeData.order);
+        const step = orderStatusToStep((activeData.order as any).status);
+        if (step) setActiveStep(step);
+      }
+
+      const cycle = await fetchDriverCycle(DRIVER_ID);
+      if (cycle) {
+        setCommissionBalance(cycle.commissionBalance || 0);
+        setPaymentStatus(cycle.paymentStatus || 'Paid');
+        setTripsCompleted(cycle.completedTrips);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  useEffect(() => {
+    loadBackendState();
+    registerDriverSocket(DRIVER_ID);
+    
+    socket.on('dispatch_incoming_order', (data: any) => {
+      if (activeStep !== 'idle' || !isOnline || paymentStatus === 'Due') return;
+      setCurrentOrder(data);
+      setActiveStep('incoming_request');
+    });
+
+    socket.on('dispatch_error', (data: any) => {
+      Alert.alert('Dispatch Error', data.message);
+      if (activeStep === 'incoming_request') {
+        setActiveStep('idle');
+        setCurrentOrder(null);
+      }
+    });
+
+    socket.on('order_status_changed', (data: any) => {
+      if (data.orderId === currentOrder?.orderId || data.orderId === currentOrder?.id) {
+        if (data.status === 'DELIVERY_COMPLETED' || data.status === 'COMPLETED') {
+           handleTripFinalizeLocally();
+        } else {
+           const step = orderStatusToStep(data.status);
+           if (step) setActiveStep(step);
+        }
       }
     });
 
     return () => {
-      socket.off('incoming_delivery_alert');
+      socket.off('dispatch_incoming_order');
+      socket.off('dispatch_error');
+      socket.off('order_status_changed');
     };
-  }, [isOnline, activeStep]);
+  }, [DRIVER_ID, isOnline, activeStep, currentOrder, paymentStatus]);
 
   useEffect(() => {
-    if (activeStep !== 'accepted' && activeStep !== 'in_transit') return;
+    const locSub = setInterval(async () => {
+      if (isOnline && paymentStatus !== 'Due') {
+        try {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const coord = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          setDriverCoord(coord);
 
-    let stopWatch: (() => void) | undefined;
-    let cancelled = false;
-
-    const startTracking = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted' || cancelled) return;
-
-      const subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 2500,
-          distanceInterval: 5,
-        },
-        (position) => {
-          const next = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-          setDriverCoord(next);
           socket.emit('driver_location_update', {
             driverId: DRIVER_ID,
-            lat: next.latitude,
-            lng: next.longitude,
-            vehicleType: orderVehicle,
+            lat: coord.latitude,
+            lng: coord.longitude,
+            vehicleType: DRIVER_VEHICLE,
+            plateNumber: plateNumber,
+            online: true,
+            orderId: currentOrder?.orderId || currentOrder?.id,
           });
-        }
-      );
-
-      stopWatch = () => subscription.remove();
-    };
-
-    startTracking();
-
-    return () => {
-      cancelled = true;
-      stopWatch?.();
-    };
-  }, [activeStep, orderVehicle]);
-
-  useEffect(() => {
-    if (activeStep !== 'accepted' && activeStep !== 'in_transit') return;
-
-    let cancelled = false;
-
-    const loadRoute = async () => {
-      const from = activeStep === 'in_transit' ? pickupCoord : driverCoord;
-      const to = activeStep === 'in_transit' ? destCoord : pickupCoord;
-      const coords = await fetchRoute(from, to);
-      if (!cancelled) {
-        setRouteCoords(coords);
-        if (!didFitMap.current) {
-          didFitMap.current = true;
-          mapRef.current?.fitToCoordinates(
-            [pickupCoord, destCoord, driverCoord],
-            {
-              edgePadding: { top: 80, right: 48, bottom: 280, left: 48 },
-              animated: true,
-            }
-          );
+        } catch (e) {
+          // Ignore location errors
         }
       }
-    };
+    }, 10000);
+    return () => clearInterval(locSub);
+  }, [isOnline, DRIVER_ID, currentOrder, paymentStatus, plateNumber, DRIVER_VEHICLE]);
 
-    loadRoute();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeStep, pickupCoord.latitude, pickupCoord.longitude, destCoord.latitude, destCoord.longitude]);
-
-  useEffect(() => {
-    didFitMap.current = false;
-  }, [activeStep]);
-
-  const handleCallUser = () => {
-    Linking.openURL('tel:+251911223344');
-  };
-
-  const handleAcceptOrder = () => {
-    setActiveStep('accepted');
-    const orderId = (currentOrder?.orderId ?? currentOrder?.id) as string | undefined;
-    if (orderId) {
-      socket.emit('accept_delivery_order', {
-        orderId,
-        driverId: DRIVER_ID,
-      });
-
-      socket.emit('driver_location_update', {
-        driverId: DRIVER_ID,
-        lat: driverCoord.latitude,
-        lng: driverCoord.longitude,
-        vehicleType: orderVehicle,
-      });
+  const handleToggleOnline = (val: boolean) => {
+    if (val && paymentStatus === 'Due') {
+      Alert.alert('Recharge Required', 'You have reached 15 trips. Please pay the 500 ETB commission to Delix via Telebirr or Chapa before going online.');
+      return;
+    }
+    setIsOnline(val);
+    if (val) {
+      registerDriverSocket(DRIVER_ID);
+    } else {
+      emitDriverOffline(DRIVER_ID);
     }
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+  const [routeCoords, setRouteCoords] = useState<{latitude: number; longitude: number}[]>([]);
+  const [etaText, setEtaText] = useState('');
 
-      {/* Driver Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.brandTitle}>DELIX DRIVER</Text>
-          <Text style={styles.driverName}>Yared Moges • Mini Truck</Text>
+  // Fetch route when order is present
+  useEffect(() => {
+    if ((activeStep === 'incoming_request' || activeStep === 'in_transit') && currentOrder) {
+      const getRoute = async () => {
+        try {
+          const originLat = activeStep === 'in_transit' ? driverCoord.latitude : currentOrder.pickupLat;
+          const originLng = activeStep === 'in_transit' ? driverCoord.longitude : currentOrder.pickupLng;
+          const destLat = activeStep === 'in_transit' ? currentOrder.destinationLat : currentOrder.pickupLat;
+          const destLng = activeStep === 'in_transit' ? currentOrder.destinationLng : currentOrder.pickupLng;
+
+          // Replace with real routing API call if available, creating straight line fallback
+          setRouteCoords([
+             { latitude: originLat, longitude: originLng },
+             { latitude: destLat, longitude: destLng }
+          ]);
+          setEtaText('~' + Math.ceil((currentOrder.distanceKm || 1) * 3) + ' mins');
+        } catch(e) {}
+      };
+      getRoute();
+    } else {
+      setRouteCoords([]);
+    }
+  }, [activeStep, currentOrder, driverCoord.latitude, driverCoord.longitude]);
+
+  const handleAccept = () => {
+    const oId = currentOrder?.orderId || currentOrder?.id;
+    if (!oId) return;
+    joinOrderRoom(oId);
+    socket.emit('accept_delivery_order', {
+      orderId: oId,
+      driverId: DRIVER_ID,
+      driverName: name,
+      plateNumber,
+      vehicleType: DRIVER_VEHICLE,
+    });
+    setActiveStep('accepted');
+  };
+
+  const handleReject = () => {
+    const oId = currentOrder?.orderId || currentOrder?.id;
+    if (oId) {
+      socket.emit('reject_delivery_order', { orderId: oId, driverId: DRIVER_ID });
+    }
+    setActiveStep('idle');
+    setCurrentOrder(null);
+  };
+
+  const handleArrived = () => {
+    const oId = currentOrder?.orderId || currentOrder?.id;
+    if (oId) socket.emit('driver_arrived_pickup', { orderId: oId, driverId: DRIVER_ID });
+    setActiveStep('arrived_pickup');
+  };
+
+  const handleStartTrip = () => {
+    const oId = currentOrder?.orderId || currentOrder?.id;
+    if (oId) {
+      socket.emit('start_delivery_trip', { 
+        orderId: oId, 
+        driverId: DRIVER_ID,
+        lat: driverCoord.latitude,
+        lng: driverCoord.longitude
+      });
+    }
+    setActiveStep('in_transit');
+  };
+
+  const handleCompleteDelivery = async () => {
+    const oId = currentOrder?.orderId || currentOrder?.id;
+    try {
+      socket.emit('order_completed', { 
+        orderId: oId, 
+        driverId: DRIVER_ID,
+        earnings: currentOrder?.estimatedPrice || 0
+      });
+      await completeDriverTrip(DRIVER_ID, oId);
+    } catch {}
+    handleTripFinalizeLocally();
+  };
+
+  const handleTripFinalizeLocally = async () => {
+    setActiveStep('idle');
+    setCurrentOrder(null);
+    setRouteCoords([]);
+    await loadBackendState();
+  };
+
+  const renderOrderSheet = () => {
+    if (activeStep === 'idle') {
+      const isDue = paymentStatus === 'Due';
+      return (
+        <View style={styles.sheetCard}>
+          {isDue ? (
+            <View>
+              <View style={styles.statusRow}>
+                <Ionicons name="warning" size={24} color={colors.error} />
+                <Text style={styles.sheetTitleError}>Recharge Required</Text>
+              </View>
+              <Text style={styles.sheetTextError}>
+                You have reached 15 trips. You owe the 500 ETB commission to Delix. You cannot receive new orders until paid.
+              </Text>
+              <DelixButton title="Pay via Telebirr (Coming Soon)" onPress={() => Alert.alert('Payment Portal', 'Integration in progress')} variant="primary" style={{marginTop: spacing.md}} />
+            </View>
+          ) : (
+            <View>
+              <View style={styles.statusRow}>
+                <Ionicons name={isOnline ? "checkmark-circle" : "moon"} size={24} color={isOnline ? colors.success : colors.textSecondary} />
+                <Text style={styles.sheetTitle}>{isOnline ? 'You are Online' : 'You are Offline'}</Text>
+              </View>
+              <Text style={styles.sheetSub}>
+                {isOnline ? 'Searching for nearby trips...' : 'Go online to receive trip requests.'}
+              </Text>
+              <View style={styles.statsRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statVal}>{tripsCompleted}/15</Text>
+                  <Text style={styles.statLabel}>Trips done</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statVal}>{commissionBalance} ETB</Text>
+                  <Text style={styles.statLabel}>Owed</Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
-        <View style={styles.onlineToggleBox}>
-          <Text style={[styles.onlineStatusText, { color: isOnline ? '#10B981' : '#6B7280' }]}>
-            {isOnline ? 'ONLINE' : 'OFFLINE'}
-          </Text>
-          <Switch value={isOnline} onValueChange={setIsOnline} trackColor={{ false: '#D1D5DB', true: '#FF5722' }} />
+      );
+    }
+
+    if (activeStep === 'incoming_request') {
+      return (
+        <View style={styles.sheetCard}>
+          <Text style={styles.sheetTitle}>New Trip Request 🔔</Text>
+          
+          <View style={styles.detailsBox}>
+            <View style={styles.locationRow}>
+               <View style={styles.dotPickup} />
+               <Text style={styles.locationText} numberOfLines={2}>{currentOrder?.pickupAddress}</Text>
+            </View>
+            <View style={styles.locationLine} />
+            <View style={styles.locationRow}>
+               <View style={styles.dotDest} />
+               <Text style={styles.locationText} numberOfLines={2}>{currentOrder?.destinationAddress}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.faresRow}>
+            <View style={styles.fareItem}>
+              <Text style={styles.fareVal}>{currentOrder?.distanceKm} km</Text>
+              <Text style={styles.fareLabel}>Distance</Text>
+            </View>
+            <View style={styles.fareItem}>
+              <Text style={styles.fareVal}>{currentOrder?.estimatedPrice} ETB</Text>
+              <Text style={styles.fareLabel}>Est. Fare</Text>
+            </View>
+            <View style={styles.fareItem}>
+              <Text style={styles.fareVal}>{currentOrder?.cargoCategory}</Text>
+              <Text style={styles.fareLabel}>Cargo Type</Text>
+            </View>
+          </View>
+
+          <View style={styles.btnRow}>
+            <View style={{ flex: 1, marginRight: spacing.sm }}>
+              <DelixButton title="Reject" variant="secondary" onPress={handleReject} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <DelixButton title="Accept" variant="primary" onPress={handleAccept} />
+            </View>
+          </View>
         </View>
+      );
+    }
+
+    if (activeStep === 'accepted') {
+       return (
+         <View style={styles.sheetCard}>
+            <Text style={styles.sheetTitle}>Picked Up & Heading There</Text>
+            <View style={styles.customerBand}>
+              <Ionicons name="person-circle" size={40} color={colors.primary} />
+              <View style={styles.customerInfo}>
+                <Text style={styles.customerName}>{currentOrder?.customerName || 'Customer'}</Text>
+                <Text style={styles.customerPhone}>{currentOrder?.customerPhone}</Text>
+              </View>
+              <TouchableOpacity style={styles.callCircle} onPress={() => Linking.openURL(`tel:${currentOrder?.customerPhone}`)}>
+                <Ionicons name="call" size={20} color={colors.background} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.btnRow}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <DelixButton title="Navigate" variant="secondary" onPress={() => openNavigation(currentOrder?.pickupLat, currentOrder?.pickupLng, 'Pickup')} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <DelixButton title="Arrived" variant="primary" onPress={handleArrived} />
+              </View>
+            </View>
+         </View>
+       );
+    }
+    
+    if (activeStep === 'arrived_pickup') {
+      return (
+        <View style={styles.sheetCard}>
+          <Text style={styles.sheetTitle}>Arrived at Pickup</Text>
+          <Text style={styles.sheetSub}>Wait for the cargo to be fully loaded into your vehicle, then start the trip.</Text>
+          <DelixButton title="Start Trip" onPress={handleStartTrip} style={{ marginTop: spacing.md }} />
+        </View>
+      );
+    }
+
+    if (activeStep === 'in_transit') {
+      const destDistance = currentOrder?.distanceKm || 0;
+      return (
+        <View style={styles.sheetCard}>
+          <Text style={styles.sheetTitle}>In Transit 🚚</Text>
+          <Text style={styles.sheetSub}>Deliver cargo to: {currentOrder?.destinationAddress}</Text>
+          
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statVal}>{etaText}</Text>
+              <Text style={styles.statLabel}>ETA</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statVal}>{destDistance} km</Text>
+              <Text style={styles.statLabel}>Total Distance</Text>
+            </View>
+          </View>
+
+          <View style={styles.btnRow}>
+            <View style={{ flex: 1, marginRight: spacing.sm }}>
+              <DelixButton title="Maps" variant="secondary" onPress={() => openNavigation(currentOrder?.destinationLat, currentOrder?.destinationLng, 'Destination')} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <DelixButton title="Complete Delivery" onPress={handleCompleteDelivery} />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <View style={styles.container}>
+      <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      
+      <MapView
+        ref={mapRef}
+        style={StyleSheet.absoluteFillObject}
+        provider={PROVIDER_GOOGLE}
+        showsUserLocation
+        showsMyLocationButton={false}
+        mapPadding={{ top: 0, right: 0, left: 0, bottom: 350 }}
+        initialRegion={{
+          latitude: 9.0205,
+          longitude: 38.7469,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        }}
+      >
+        {driverCoord && <DriverMapMarker id="driver" type="driver" coordinate={driverCoord} vehicleType={DRIVER_VEHICLE} />}
+        {currentOrder?.pickupLat && activeStep !== 'in_transit' && (
+           <DriverMapMarker id="pickup" type="user" coordinate={{ latitude: currentOrder.pickupLat, longitude: currentOrder.pickupLng }} />
+        )}
+        {currentOrder?.destinationLat && activeStep === 'in_transit' && (
+           <DriverMapMarker id="dest" type="destination" coordinate={{ latitude: currentOrder.destinationLat, longitude: currentOrder.destinationLng }} />
+        )}
+        
+        {routeCoords.length > 0 && (
+          <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor={colors.primary} />
+        )}
+      </MapView>
+
+      <View style={styles.topHeader}>
+        <TouchableOpacity style={styles.menuBtn} onPress={() => setDrawerOpen(true)}>
+          <Ionicons name="menu" size={28} color={colors.textPrimary} />
+        </TouchableOpacity>
+        
+        {activeStep === 'idle' && (
+          <View style={styles.onlineToggle}>
+            <Text style={styles.onlineText}>{isOnline ? 'Online' : 'Offline'}</Text>
+            <Switch
+              value={isOnline}
+              onValueChange={handleToggleOnline}
+              trackColor={{ false: colors.border, true: colors.successTint }}
+              thumbColor={isOnline ? colors.success : '#f4f3f4'}
+            />
+          </View>
+        )}
       </View>
 
-      {/* Expo Maps Native UI Rendering when Active */}
-      {(activeStep === 'accepted' || activeStep === 'in_transit') && (
-        <View style={styles.mapBackground}>
-          <MapView
-            ref={mapRef}
-            style={{ flex: 1 }}
-            initialRegion={{
-              latitude: pickupCoord.latitude,
-              longitude: pickupCoord.longitude,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
-            }}
-            mapPadding={{ top: 60, right: 16, bottom: 260, left: 16 }}
-          >
-            {routeCoords.length > 1 && (
-              <Polyline
-                coordinates={routeCoords}
-                strokeColor="#22C55E"
-                strokeWidth={5}
-                lineCap="round"
-                lineJoin="round"
-              />
-            )}
-
-            <DriverMapMarker
-              id="pickup"
-              coordinate={pickupCoord}
-              type="user"
-            />
-
-            <DriverMapMarker
-              id="destination"
-              coordinate={destCoord}
-              type="destination"
-              vehicleType={orderVehicle}
-              label={activeStep === 'in_transit' ? 'Dropoff' : undefined}
-            />
-
-            <DriverMapMarker
-              id="driver"
-              coordinate={driverCoord}
-              type="driver"
-              vehicleType={orderVehicle}
-              label="You"
-            />
-          </MapView>
-        </View>
-      )}
-
-      {/* IDLE VIEW */}
-      {activeStep === 'idle' && (
-        <ScrollView style={styles.content}>
-          <View style={styles.cycleCard}>
-            <View style={styles.cycleHeader}>
-              <Text style={styles.cycleTitle}>10-Trip Commission Cycle</Text>
-              <Text style={styles.cycleCount}>{completedTrips} / 10</Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${(completedTrips / 10) * 100}%` }]} />
-            </View>
-            <Text style={styles.cycleSubtitle}>Finish {10 - completedTrips} more trips before Telebirr commission recharge requires.</Text>
-          </View>
-
-          <View style={styles.searchingBox}>
-            <Text style={styles.searchingIcon}>📡</Text>
-            <Text style={styles.searchingTitle}>Searching for requests...</Text>
-            <Text style={styles.searchingSubtitle}>Stay online for dispatch alerts.</Text>
-          </View>
-        </ScrollView>
-      )}
-
-      {/* INCOMING REQUEST FLASHING RING - Phone Call Style */}
-      {activeStep === 'incoming_request' && (
-        <View style={styles.incomingModal}>
-          <View style={styles.pulseRing}>
-            <Text style={styles.ringingText}>NEW REQUEST</Text>
-            <Text style={styles.priceTagHuge}>{currentOrder?.estimatedPrice || 450} {currentOrder?.currency || 'ETB'}</Text>
-          </View>
-
-          <View style={styles.requestDetailsBox}>
-            <Text style={styles.cargoType}>Cargo: {currentOrder?.cargoCategory || 'Construction Materials'}</Text>
-            <View style={styles.reqRouteBox}>
-              <Text style={styles.routeText}>📍 Pickup: {currentOrder?.pickupAddress || 'Gerji Mebrat Hail'} ({currentOrder?.distanceKm || 2} km away)</Text>
-              <Text style={styles.routeText}>🏁 Dropoff: {currentOrder?.destinationAddress || 'CMC Square'}</Text>
-            </View>
-            <Text style={styles.paymentMethod}>Payment: {currentOrder?.paymentMethod || 'Cash'}</Text>
-          </View>
-
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.rejectButton} onPress={() => setActiveStep('idle')}>
-              <Text style={styles.rejectButtonText}>Decline</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.acceptButton} onPress={handleAcceptOrder}>
-              <Text style={styles.acceptButtonText}>ACCEPT NOW</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* BOTTOM SHEET: ACCEPTED - Navigating to user */}
-      {activeStep === 'accepted' && (
-        <View style={styles.bottomSheet}>
-          <View style={styles.statusHeader}>
-            <Text style={styles.activeTitle}>Pick Up Passenger</Text>
-            <Text style={styles.etaActive}>2 miles away</Text>
-          </View>
-
-          <View style={styles.customerBox}>
-            <Text style={styles.customerName}>Abebe Bikila</Text>
-            <Text style={styles.routePreview}>
-              {vehicleIcon(orderVehicle)} {String(currentOrder?.destinationAddress ?? 'Destination')}
-            </Text>
-            <TouchableOpacity style={styles.callRingButton} onPress={handleCallUser}>
-              <Text style={{fontSize: moderateScale(18)}}>📞 Call Passenger</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.workflowButton} onPress={() => setActiveStep('in_transit')}>
-            <Text style={styles.workflowButtonText}>ARRIVED AT PICKUP</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* BOTTOM SHEET: IN TRANSIT - Navigating to Destination */}
-      {activeStep === 'in_transit' && (
-        <View style={styles.bottomSheet}>
-          <View style={styles.statusHeader}>
-            <Text style={styles.activeTitle}>Navigating to Dropoff</Text>
-            <Text style={styles.etaActive}>15 mins ETA</Text>
-          </View>
-
-          <View style={styles.destinationBox}>
-            <Text style={styles.destLocText}>{currentOrder?.destinationAddress || 'CMC Square, Block 4'}</Text>
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.workflowButton, { backgroundColor: '#10B981' }]} 
-            onPress={() => {
-              setCompletedTrips(prev => Math.min(prev + 1, 10));
-              setActiveStep('completed');
-            }}
-          >
-            <Text style={styles.workflowButtonText}>COMPLETE TRIP</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* COMPLETED SUCCESS SCREEN */}
-      {activeStep === 'completed' && (
-        <View style={styles.completedCard}>
-          <Text style={styles.completedIcon}>🎉</Text>
-          <Text style={styles.completedTitle}>Delivery Completed!</Text>
-          <Text style={styles.completedAmount}>You earned {currentOrder?.estimatedPrice || 450} {currentOrder?.currency || 'ETB'}</Text>
-          <TouchableOpacity style={styles.finishButton} onPress={() => setActiveStep('idle')}>
-            <Text style={styles.finishButtonText}>Back to Map</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </SafeAreaView>
+      <View style={styles.bottomOverlay}>
+        {renderOrderSheet()}
+      </View>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: moderateScale(20), backgroundColor: '#FFF', zIndex: 10, shadowColor:'#000', shadowOpacity:0.05, shadowOffset:{width:0, height:2} },
-  brandTitle: { fontSize: moderateScale(20), fontWeight: '900', color: '#FF5722' },
-  driverName: { fontSize: moderateScale(13), fontWeight: '600', color: '#4B5563' },
-  onlineToggleBox: { flexDirection: 'row', alignItems: 'center' },
-  onlineStatusText: { fontSize: moderateScale(13), fontWeight: '800', marginRight: widthScale(8) },
-  content: { padding: moderateScale(20) },
-  cycleCard: { backgroundColor: '#FFF', borderRadius: moderateScale(16), padding: moderateScale(16), borderWidth: 1, borderColor: '#E5E7EB', marginBottom: heightScale(20) },
-  cycleHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: heightScale(10) },
-  cycleTitle: { fontSize: moderateScale(14), fontWeight: '700' },
-  cycleCount: { fontSize: moderateScale(14), fontWeight: '800', color: '#FF5722' },
-  progressBarBg: { height: heightScale(8), backgroundColor: '#F3F4F6', borderRadius: moderateScale(4), overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#FF5722' },
-  cycleSubtitle: { fontSize: moderateScale(12), color: '#6B7280', marginTop: heightScale(8) },
-  searchingBox: { backgroundColor: '#FFF', borderRadius: moderateScale(20), padding: moderateScale(30), alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
-  searchingIcon: { fontSize: moderateScale(48), marginBottom: heightScale(10) },
-  searchingTitle: { fontSize: moderateScale(18), fontWeight: '800' },
-  searchingSubtitle: { fontSize: moderateScale(13), color: '#6B7280', marginTop: heightScale(6) },
-  
-  // Incoming Call Overlay
-  incomingModal: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1F2937', zIndex: 20, padding: moderateScale(30), justifyContent: 'center' },
-  pulseRing: { alignItems: 'center', marginBottom: heightScale(40) },
-  ringingText: { color: '#FBBF24', fontSize: moderateScale(16), fontWeight: '900', letterSpacing: 2, marginBottom: heightScale(10) },
-  priceTagHuge: { fontSize: moderateScale(56), fontWeight: '900', color: '#FFF' },
-  requestDetailsBox: { backgroundColor: '#374151', padding: moderateScale(20), borderRadius: moderateScale(16), marginBottom: heightScale(40) },
-  cargoType: { color: '#FFF', fontSize: moderateScale(16), fontWeight: '700', marginBottom: heightScale(15) },
-  reqRouteBox: { backgroundColor: '#1F2937', padding: moderateScale(15), borderRadius: moderateScale(12), marginBottom: heightScale(15) },
-  routeText: { color: '#F3F4F6', fontSize: moderateScale(14), marginVertical: heightScale(4), fontWeight: '600' },
-  paymentMethod: { color: '#34D399', fontSize: moderateScale(14), fontWeight: '800' },
-  actionRow: { flexDirection: 'row', gap: moderateScale(15) },
-  rejectButton: { flex: 1, backgroundColor: '#4B5563', padding: moderateScale(18), borderRadius: moderateScale(16), alignItems: 'center' },
-  rejectButtonText: { color: 'white', fontWeight: '700', fontSize: moderateScale(16) },
-  acceptButton: { flex: 2, backgroundColor: '#FF5722', padding: moderateScale(18), borderRadius: moderateScale(16), alignItems: 'center', shadowColor: '#FF5722', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: {width:0, height:4} },
-  acceptButtonText: { color: 'white', fontWeight: '900', fontSize: moderateScale(18) },
-
-  // Map Views
-  mapBackground: { flex: 1, backgroundColor: '#E5E5E0', position: 'relative' },
-
-  // Interactive Bottom Sheets
-  bottomSheet: { backgroundColor: 'white', position: 'absolute', bottom: 0, width: '100%', padding: moderateScale(24), borderTopLeftRadius: moderateScale(24), borderTopRightRadius: moderateScale(24), shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 15 },
-  statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: heightScale(20) },
-  activeTitle: { fontSize: moderateScale(22), fontWeight: '900', color: '#1F2937' },
-  etaActive: { backgroundColor: '#10B981', color: '#FFF', fontWeight: '800', paddingHorizontal: widthScale(12), paddingVertical: heightScale(6), borderRadius: moderateScale(12) },
-  customerBox: {
-    backgroundColor: '#F9FAFB',
-    padding: moderateScale(15),
-    borderRadius: moderateScale(16),
-    marginBottom: heightScale(20),
-  },
-  customerName: { fontSize: moderateScale(18), fontWeight: '800' },
-  routePreview: {
-    fontSize: moderateScale(13),
-    color: '#6B7280',
-    marginTop: heightScale(4),
-    marginBottom: heightScale(8),
-    fontWeight: '600',
-  },
-  callRingButton: { backgroundColor: '#2563EB', paddingHorizontal: widthScale(16), paddingVertical: heightScale(10), borderRadius: moderateScale(12), alignSelf: 'flex-start' },
-  workflowButton: { backgroundColor: '#FF5722', padding: moderateScale(18), borderRadius: moderateScale(16), alignItems: 'center' },
-  workflowButtonText: { color: '#FFF', fontWeight: '900', fontSize: moderateScale(16) },
-  destinationBox: { backgroundColor: '#F9FAFB', padding: moderateScale(15), borderRadius: moderateScale(16), marginBottom: heightScale(20) },
-  destLocText: { fontSize: moderateScale(18), fontWeight: '700' },
-
-  // Completed
-  completedCard: { ...StyleSheet.absoluteFillObject, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', zIndex: 30 },
-  completedIcon: { fontSize: moderateScale(80), marginBottom: heightScale(20) },
-  completedTitle: { fontSize: moderateScale(24), fontWeight: '900', color: '#10B981' },
-  completedAmount: { fontSize: moderateScale(32), fontWeight: '900', marginVertical: heightScale(20) },
-  finishButton: { backgroundColor: '#1F2937', padding: moderateScale(16), paddingHorizontal: widthScale(40), borderRadius: moderateScale(16) },
-  finishButtonText: { color: 'white', fontWeight: '800', fontSize: moderateScale(16) },
-});
-
 export default DriverHomeScreen;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.mapBackground,
+  },
+  topHeader: {
+    position: 'absolute',
+    top: spacing['3xl'],
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  menuBtn: {
+    width: moderateScale(48),
+    height: moderateScale(48),
+    backgroundColor: colors.background,
+    borderRadius: moderateScale(24),
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  onlineToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  onlineText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(14),
+    color: colors.textPrimary,
+    marginRight: spacing.sm,
+  },
+  bottomOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.md,
+  },
+  sheetCard: {
+    backgroundColor: colors.background,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 20,
+  },
+  sheetTitle: {
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(20),
+    color: colors.textPrimary,
+  },
+  sheetTitleError: {
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(20),
+    color: colors.error,
+    marginLeft: spacing.xs,
+  },
+  sheetTextError: {
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(14),
+    color: colors.error,
+    marginTop: spacing.sm,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sheetSub: {
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(14),
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    paddingTop: spacing.md,
+  },
+  statBox: {
+    alignItems: 'center',
+  },
+  statVal: {
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(18),
+    color: colors.primary,
+  },
+  statLabel: {
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(12),
+    color: colors.textSecondary,
+  },
+  detailsBox: {
+    marginTop: spacing.md,
+    padding: spacing.sm,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radius.md,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationLine: {
+    width: 2,
+    height: spacing.lg,
+    backgroundColor: colors.border,
+    marginLeft: moderateScale(5),
+    marginVertical: 2,
+  },
+  dotPickup: {
+    width: moderateScale(12),
+    height: moderateScale(12),
+    borderRadius: moderateScale(6),
+    backgroundColor: colors.info,
+    marginRight: spacing.sm,
+  },
+  dotDest: {
+    width: moderateScale(12),
+    height: moderateScale(12),
+    backgroundColor: colors.primary,
+    marginRight: spacing.sm,
+  },
+  locationText: {
+    flex: 1,
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(13),
+    color: colors.textPrimary,
+  },
+  faresRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: spacing.lg,
+  },
+  fareItem: {
+    alignItems: 'center',
+  },
+  fareVal: {
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(16),
+    color: colors.textPrimary,
+  },
+  fareLabel: {
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(12),
+    color: colors.textSecondary,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    marginTop: spacing.md,
+  },
+  customerBand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundSecondary,
+    padding: spacing.sm,
+    borderRadius: radius.lg,
+    marginTop: spacing.md,
+  },
+  customerInfo: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  customerName: {
+    fontFamily: fontFamilies.bold,
+    fontSize: moderateScale(16),
+    color: colors.textPrimary,
+  },
+  customerPhone: {
+    fontFamily: fontFamilies.medium,
+    fontSize: moderateScale(13),
+    color: colors.textSecondary,
+  },
+  callCircle: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    backgroundColor: colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
+});

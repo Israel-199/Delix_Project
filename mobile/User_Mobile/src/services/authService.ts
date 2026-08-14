@@ -57,3 +57,26 @@ export const getUserOrders = async (
   return apiClient.get<{ success: boolean; orders: any[] }>(`/users/orders${query}`);
 };
 
+export interface UserNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  orderId?: string | null;
+  createdAt: string;
+}
+
+export const getUserNotifications = async (phone: string) => {
+  return apiClient.get<{ success: boolean; notifications: UserNotification[] }>(
+    `/users/notifications?phone=${encodeURIComponent(phone)}`
+  );
+};
+
+export const markNotificationRead = async (id: string, phone: string) => {
+  return apiClient.patch<{ success: boolean }>(
+    `/users/notifications/${id}/read?phone=${encodeURIComponent(phone)}`,
+    {}
+  );
+};
+

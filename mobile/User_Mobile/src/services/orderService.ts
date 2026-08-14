@@ -50,12 +50,20 @@ export interface OrderRecord {
   cargoCategory: string;
   vehicleRequested: string;
   pickupAddress: string;
+  pickupLat?: number;
+  pickupLng?: number;
   destinationAddress: string;
+  destinationLat?: number;
+  destinationLng?: number;
   estimatedPrice: number;
   currency: string;
   paymentMethod: string;
   status: string;
   createdAt: string;
+  driverId?: string;
+  driverName?: string;
+  driverPhone?: string;
+  plateNumber?: string;
 }
 
 export interface CreateOrderResponse {
@@ -118,4 +126,19 @@ export const createOrder = async (
     },
     token
   );
+};
+
+export const fetchOrderById = async (
+  orderId: string,
+  token?: string | null
+): Promise<OrderRecord | null> => {
+  try {
+    const response = await apiClient.get<{ success: boolean; order: OrderRecord }>(
+      `/orders/${encodeURIComponent(orderId)}`,
+      token
+    );
+    return response.order ?? null;
+  } catch {
+    return null;
+  }
 };

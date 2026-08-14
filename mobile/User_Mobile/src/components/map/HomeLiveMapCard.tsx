@@ -5,10 +5,10 @@ import { colors, radius, shadows, spacing } from '../../design-system';
 import { fontFamilies } from '../../theme/typography';
 import { fetchNearbyDrivers } from '../../services/locationApiService';
 import { requestUserLocation } from '../../services/locationService';
-import { onLiveDriverMoved } from '../../services/socketService';
 import { MapMarkerData, NearbyDriver } from '../../types';
-import { vehicleCategoryFromBackend } from '../../utils/driverTracking';
 import { moderateScale } from '../../utils/responsive';
+
+const NEARBY_POLL_MS = 8000;
 
 interface HomeLiveMapCardProps {
   onPress?: () => void;
@@ -21,44 +21,34 @@ export const HomeLiveMapCard = ({ onPress }: HomeLiveMapCardProps) => {
 
   useEffect(() => {
     let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    const refreshNearby = async (lat: number, lng: number) => {
+      const nearby = await fetchNearbyDrivers(lat, lng);
+      if (!cancelled) setDrivers(nearby);
+    };
 
     const load = async () => {
       const point = await requestUserLocation();
       if (cancelled) return;
 
       if (point) {
-        setUserPoint({ latitude: point.latitude, longitude: point.longitude });
-        const nearby = await fetchNearbyDrivers(point.latitude, point.longitude);
-        if (!cancelled) setDrivers(nearby);
+        const coord = { latitude: point.latitude, longitude: point.longitude };
+        setUserPoint(coord);
+        await refreshNearby(coord.latitude, coord.longitude);
+        intervalId = setInterval(() => {
+          void refreshNearby(coord.latitude, coord.longitude);
+        }, NEARBY_POLL_MS);
       }
       if (!cancelled) setLoading(false);
     };
 
-    load();
+    void load();
+
     return () => {
       cancelled = true;
+      if (intervalId) clearInterval(intervalId);
     };
-  }, []);
-
-  useEffect(() => {
-    return onLiveDriverMoved((payload) => {
-      const vehicleCategory = vehicleCategoryFromBackend(payload.vehicleType);
-      setDrivers((prev) => {
-        const next: NearbyDriver = {
-          id: payload.driverId,
-          coordinate: { latitude: payload.lat, longitude: payload.lng },
-          vehicleCategory,
-          etaMinutes: 2,
-        };
-        const index = prev.findIndex((d) => d.id === payload.driverId);
-        if (index >= 0) {
-          const copy = [...prev];
-          copy[index] = next;
-          return copy;
-        }
-        return [...prev, next];
-      });
-    });
   }, []);
 
   const markers = useMemo<MapMarkerData[]>(() => {

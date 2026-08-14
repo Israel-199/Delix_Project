@@ -68,7 +68,8 @@ export const BottomSheet = ({
         if (gesture.dy > 0) {
           translateY.setValue(gesture.dy);
         } else {
-          translateY.setValue(gesture.dy * 0.2);
+          // Clamp upward drag to 0 so the sheet stays flush at the bottom without creating a gap underneath
+          translateY.setValue(0);
         }
       },
       onPanResponderRelease: (_, gesture) => {
@@ -148,7 +149,8 @@ export const InlineBottomSheet = ({
         if (gesture.dy > 0) {
           translateY.setValue(gesture.dy);
         } else {
-          translateY.setValue(gesture.dy * 0.15);
+          // Clamp upward drag to 0 so the sheet stays flush at the bottom without creating a gap underneath
+          translateY.setValue(0);
         }
       },
       onPanResponderRelease: (_, gesture) => {

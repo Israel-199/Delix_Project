@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import MapView, { MapViewProps, Polyline, Region } from 'react-native-maps';
 import { colors, radius, shadows } from '../../design-system';
-import { fontSize, fontWeight } from '../../design-system/typography';
+import { fontWeight } from '../../design-system/typography';
 import { DEFAULT_MAP_REGION } from '../../constants';
 import { MapMarkerData } from '../../types';
 import { moderateScale, widthScale, heightScale } from '../../utils/responsive';
@@ -26,12 +26,11 @@ export interface MapContainerProps extends Omit<MapViewProps, 'style'> {
   backButtonOverlay?: ReactNode;
   rightOverlay?: ReactNode;
   initialRegion?: Region;
-  /** Lock map on user with street-level zoom — no second auto-fit. */
   focusCoordinate?: { latitude: number; longitude: number } | null;
   mapPaddingBottom?: number;
 }
 
-export const MapContainer = ({
+const MapContainerInner = ({
   style,
   markers = [],
   routeCoordinates,
@@ -49,25 +48,27 @@ export const MapContainer = ({
   const mapRef = useRef<MapView>(null);
   const didZoomToUser = useRef(false);
   const focusOnMount = useRef(!!focusCoordinate);
+  const focusLat = focusCoordinate?.latitude;
+  const focusLng = focusCoordinate?.longitude;
 
   useEffect(() => {
-    if (!focusCoordinate || didZoomToUser.current) return;
+    if (focusLat == null || focusLng == null || didZoomToUser.current) return;
 
     didZoomToUser.current = true;
-
     if (focusOnMount.current) return;
 
-    const region = regionAroundUserDetail(focusCoordinate);
+    const region = regionAroundUserDetail({ latitude: focusLat, longitude: focusLng });
     const timer = setTimeout(() => {
       mapRef.current?.animateToRegion(region, 280);
     }, 80);
 
     return () => clearTimeout(timer);
-  }, [focusCoordinate]);
+  }, [focusLat, focusLng]);
 
-  const mapInitialRegion = focusCoordinate
-    ? regionAroundUserDetail(focusCoordinate)
-    : initialRegion;
+  const mapInitialRegion =
+    focusLat != null && focusLng != null
+      ? regionAroundUserDetail({ latitude: focusLat, longitude: focusLng })
+      : initialRegion;
 
   return (
     <View style={[styles.container, style]}>
@@ -85,7 +86,7 @@ export const MapContainer = ({
         }}
         {...mapProps}
       >
-        {routeCoordinates && routeCoordinates.length > 1 && (
+        {routeCoordinates && routeCoordinates.length > 1 ? (
           <Polyline
             coordinates={routeCoordinates}
             strokeColor={routeFollowsRoads ? colors.success : colors.warning}
@@ -93,7 +94,7 @@ export const MapContainer = ({
             lineCap="round"
             lineJoin="round"
           />
-        )}
+        ) : null}
 
         {markers.map((marker) => (
           <MapMarkerView key={marker.id} marker={marker} />
@@ -102,7 +103,7 @@ export const MapContainer = ({
         {children}
       </MapView>
 
-      {showBackButton && (
+      {showBackButton ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go back"
@@ -111,7 +112,7 @@ export const MapContainer = ({
         >
           {backButtonOverlay ?? <Text style={styles.backIcon}>←</Text>}
         </Pressable>
-      )}
+      ) : null}
 
       {rightOverlay ? (
         <View style={[styles.overlayButton, styles.rightButton]}>{rightOverlay}</View>
@@ -119,6 +120,8 @@ export const MapContainer = ({
     </View>
   );
 };
+
+export const MapContainer = React.memo(MapContainerInner);
 
 const styles = StyleSheet.create({
   container: {

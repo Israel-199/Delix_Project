@@ -19,14 +19,16 @@ const ProfileSetupScreen = ({ navigation }: Props) => {
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoBase64, setPhotoBase64] = useState<string | undefined>(undefined);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handlePickPhoto = async () => {
-    const uri = await pickImage();
-    if (uri) {
-      setPhotoUri(uri);
+    const result = await pickImage();
+    if (result) {
+      setPhotoUri(result.uri);
+      setPhotoBase64(result.base64);
     }
   };
 
@@ -43,7 +45,7 @@ const ProfileSetupScreen = ({ navigation }: Props) => {
       let cloudinaryUrl = null;
       if (photoUri) {
         // Upload to cloudinary if user picked an optional photo
-        cloudinaryUrl = await uploadImageToCloudinary(photoUri);
+        cloudinaryUrl = await uploadImageToCloudinary(photoUri, photoBase64);
       }
 
       await updateProfile({
@@ -79,7 +81,7 @@ const ProfileSetupScreen = ({ navigation }: Props) => {
           )}
         </Pressable>
         {photoUri && (
-          <Pressable onPress={() => setPhotoUri(null)} style={styles.removePhotoBtn}>
+          <Pressable onPress={() => { setPhotoUri(null); setPhotoBase64(undefined); }} style={styles.removePhotoBtn}>
             <Text style={styles.removePhotoText}>Remove</Text>
           </Pressable>
         )}

@@ -30,6 +30,7 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
   const [error, setError] = useState<string | undefined>();
   const accessToken = useAuthStore((s) => s.accessToken);
   const phone = useAuthStore((s) => s.phone);
+  const user = useAuthStore((s) => s.user);
 
   const booking = useBookingStore();
   const {
@@ -125,6 +126,8 @@ const BookingSummaryScreen = ({ navigation }: Props) => {
         ...response.order,
         orderId,
         customerId: phone,
+        customerPhone: phone,
+        customerName: user?.name || user?.firstName || 'Customer',
       });
 
       navigation.replace('DriverTracking', { orderId });
