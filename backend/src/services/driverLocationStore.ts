@@ -50,6 +50,17 @@ export const upsertDriverLocation = (payload: {
   });
 };
 
+export const markDriverUnavailable = (driverId: string) => {
+  const existing = liveDrivers.get(driverId);
+  if (existing) {
+    liveDrivers.set(driverId, {
+      ...existing,
+      available: false,
+      lastUpdate: new Date().toISOString(),
+    });
+  }
+};
+
 export const setDriverOffline = (driverId: string) => {
   const existing = liveDrivers.get(driverId);
   if (existing) {

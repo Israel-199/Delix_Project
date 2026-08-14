@@ -44,6 +44,13 @@ enum CargoCategory {
   OTHER
 }
 
+enum DriverDocumentType {
+  LICENSE
+  NATIONAL_ID
+  REGISTRATION_BOOK
+  INSURANCE
+}
+
 model User {
   id              String   @id @default(uuid())
   phone           String   @unique
@@ -52,22 +59,30 @@ model User {
   lastName        String?
   profilePhotoUrl String?
   role      Role     @default(CUSTOMER)
+  isBlocked Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   driverProfile Driver?
   customerOrders Order[]  @relation("CustomerOrders")
   savedLocations SavedLocation[]
+  notifications Notification[]
 }
 
 model Driver {
   id                String       @id @default(uuid())
   userId            String       @unique
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  licenseNumber     String       @unique
+  licenseNumber     String       @default(uuid())
   vehicleType       VehicleType
   plateNumber       String       @unique
   photoUrl          String?
+  nationalId        String?
+  vehicleCargoType  String?
+  vehicleOwnerName  String?
+  insuranceInfo     String?
+  bankAccount       String?
+  address           String?
   status            DriverStatus @default(PENDING_APPROVAL)
   completedTrips    Int          @default(0)
   commissionBalance Float        @default(0.0)
@@ -77,6 +92,7 @@ model Driver {
   updatedAt         DateTime     @updatedAt
 
   assignedOrders    Order[]      @relation("DriverOrders")
+  documents         DriverDocument[]
 }
 
 model Order {
@@ -100,6 +116,10 @@ model Order {
   distanceKm          Float
   estimatedPrice      Float
   status              OrderStatus   @default(SEARCHING_DRIVER)
+  tripStartedAt       DateTime?
+  startLat            Float?
+  startLng            Float?
+  paymentMethod       String?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 }
@@ -112,6 +132,14 @@ model PricingMatrix {
   loadingFee   Float
   unloadingFee Float
   updatedAt    DateTime    @updatedAt
+}
+
+model PricingSettings {
+  id                 String   @id @default("default")
+  baseFare           Float    @default(300)
+  distanceRatePerKm  Float    @default(90)
+  waitingRatePerHour Float    @default(50)
+  updatedAt          DateTime @updatedAt
 }
 
 model SavedLocation {
@@ -129,4 +157,32 @@ model SavedLocation {
 
   @@unique([userId, latitude, longitude])
   @@index([userId, lastSelectedAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String
+  read      Boolean  @default(false)
+  orderId   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model DriverDocument {
+  id        String             @id @default(uuid())
+  driverId  String
+  driver    Driver             @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  type      DriverDocumentType
+  url       String
+  publicId  String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@unique([driverId, type])
+  @@index([driverId])
 }

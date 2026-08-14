@@ -1,11 +1,27 @@
-export const TRIP_CYCLE_LENGTH = 10;
+export const TRIP_CYCLE_LENGTH = 15;
+export const COMMISSION_AMOUNT_ETB = 500;
+
+export type PaymentStatus = 'Paid' | 'Due' | 'Processing';
 
 export interface TripCycleResult {
   completedTrips: number;
   tripsUntilRecharge: number;
   cycleReset: boolean;
   commissionBalance?: number;
+  paymentStatus?: PaymentStatus;
 }
+
+export const resolvePaymentStatus = (cycle: {
+  completedTrips: number;
+  commissionBalance?: number;
+}): PaymentStatus => {
+  const balance = cycle.commissionBalance ?? 0;
+  // If they owe >= 500 ETB, mark as Due
+  if (balance >= COMMISSION_AMOUNT_ETB) {
+    return 'Due';
+  }
+  return 'Paid';
+};
 
 const memoryTripCounts = new Map<string, number>();
 const memoryCommission = new Map<string, number>();
@@ -29,13 +45,11 @@ export const recordTripCompleteMemory = (driverRef: string, earnings = 0): TripC
   if (next >= TRIP_CYCLE_LENGTH) {
     cycleReset = true;
     completedTrips = 0;
-    commissionBalance += earnings;
+    // Apply exact flat fee of 500 rather than dynamically
+    commissionBalance += COMMISSION_AMOUNT_ETB;
     memoryTripCounts.set(driverRef, 0);
   } else {
     memoryTripCounts.set(driverRef, next);
-    if (earnings > 0) {
-      commissionBalance += earnings;
-    }
   }
 
   memoryCommission.set(driverRef, commissionBalance);
@@ -45,6 +59,7 @@ export const recordTripCompleteMemory = (driverRef: string, earnings = 0): TripC
     tripsUntilRecharge: TRIP_CYCLE_LENGTH - completedTrips,
     cycleReset,
     commissionBalance,
+    paymentStatus: resolvePaymentStatus({ completedTrips, commissionBalance })
   };
 };
 
@@ -54,4 +69,10 @@ export const getTripCycleMemory = (driverRef: string): TripCycleResult => {
     ...getTripCycleFromCount(completedTrips),
     commissionBalance: memoryCommission.get(driverRef) ?? 0,
   };
+};
+
+export const resetTripCycleMemory = (driverRef: string): TripCycleResult => {
+  memoryTripCounts.set(driverRef, 0);
+  memoryCommission.set(driverRef, 0);
+  return getTripCycleMemory(driverRef);
 };

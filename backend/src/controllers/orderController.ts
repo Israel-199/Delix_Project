@@ -5,7 +5,7 @@ import {
   VehicleType,
 } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { calculateAuthoritativeFare } from '../utils/pricing';
+import { assignDriverToOrderAtomic } from '../services/orderAssignmentService';
 
 const calculatePrice = (distanceKm: number, waitingHours = 0) =>
   calculateAuthoritativeFare(distanceKm || 0, waitingHours);
@@ -36,7 +36,12 @@ const resolveCustomerUserId = async (customerRef: string): Promise<string> => {
     },
   });
 
-  if (existing) return existing.id;
+  if (existing) {
+    if (existing.isBlocked) {
+      throw new Error('BLOCKED_USER');
+    }
+    return existing.id;
+  }
 
   const created = await prisma.user.create({
     data: { phone: normalizedPhone },
@@ -77,6 +82,55 @@ const formatOrderResponse = (order: {
   status: order.status,
   createdAt: order.createdAt.toISOString(),
 });
+
+export const getOrderById = async (req: Request, res: Response) => {
+  try {
+    const orderId = String(req.params.id ?? '').trim();
+    if (!orderId) {
+      return res.status(400).json({ error: 'order id required' });
+    }
+
+    try {
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          driver: {
+            include: {
+              user: { select: { phone: true, firstName: true, lastName: true } },
+            },
+          },
+          customer: { select: { phone: true, firstName: true, lastName: true } },
+        },
+      });
+
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      const driverName = order.driver
+        ? [order.driver.user.firstName, order.driver.user.lastName].filter(Boolean).join(' ') ||
+          'Driver'
+        : undefined;
+
+      return res.status(200).json({
+        success: true,
+        order: {
+          ...formatOrderResponse(order),
+          driverId: order.driverId ?? undefined,
+          driverName,
+          driverPhone: order.driver?.user.phone,
+          plateNumber: order.driver?.plateNumber,
+          paymentMethod: 'Cash',
+        },
+      });
+    } catch {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch order';
+    res.status(500).json({ error: message });
+  }
+};
 
 export const estimateOrderPrice = async (req: Request, res: Response) => {
   try {
@@ -148,9 +202,18 @@ export const createOrder = async (req: Request, res: Response) => {
           unloadingAssistance: Boolean(unloadingAssistance),
           distanceKm: distanceNum,
           estimatedPrice: priceAmount,
+          paymentMethod: paymentMethod ?? 'Cash',
           status: 'SEARCHING_DRIVER',
         },
+        include: {
+          customer: { select: { phone: true, firstName: true, middleName: true, lastName: true } },
+        },
       });
+
+      const customerName =
+        [order.customer.firstName, order.customer.middleName, order.customer.lastName]
+          .filter(Boolean)
+          .join(' ') || 'Customer';
 
       return res.status(201).json({
         success: true,
@@ -158,14 +221,21 @@ export const createOrder = async (req: Request, res: Response) => {
         order: {
           ...formatOrderResponse(order),
           paymentMethod: paymentMethod ?? 'Cash',
+          customerPhone: order.customer.phone,
+          customerName,
         },
       });
     } catch (dbError) {
+      if (dbError instanceof Error && dbError.message === 'BLOCKED_USER') {
+        return res.status(403).json({ error: 'This account has been blocked. Contact Delix support.' });
+      }
       console.warn('[Order] Database unavailable, using in-memory order:', dbError);
 
       const fallbackOrder = {
         id: `DLX-${Math.floor(1000 + Math.random() * 9000)}`,
         customerId: customerId || 'USR-TEMP',
+        customerPhone: String(customerId ?? ''),
+        customerName: 'Customer',
         cargoCategory: cargo,
         vehicleRequested: vehicle,
         pickupAddress,
@@ -241,23 +311,38 @@ export const acceptOrder = async (req: Request, res: Response) => {
     }
 
     try {
-      const order = await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          status: 'DRIVER_ACCEPTED',
-          driverId: driverId.startsWith('DRV-') ? undefined : driverId,
-        },
-      });
+      let resolvedDriverId: string | undefined;
+      try {
+        const driver = await prisma.driver.findFirst({
+          where: {
+            OR: [
+              { id: driverId },
+              { plateNumber: driverId },
+              { user: { phone: driverId } },
+            ],
+          },
+        });
+        resolvedDriverId = driver?.id;
+      } catch {
+        resolvedDriverId = driverId.startsWith('DRV-') ? undefined : driverId;
+      }
+
+      const assignment = await assignDriverToOrderAtomic(orderId, resolvedDriverId ?? driverId);
+      if (!assignment.success) {
+        return res.status(409).json({ error: 'This trip is no longer available.' });
+      }
+
+      const order = await prisma.order.findUnique({ where: { id: orderId } });
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
 
       return res.status(200).json({
         success: true,
         order: formatOrderResponse(order),
       });
     } catch {
-      return res.status(200).json({
-        success: true,
-        order: { id: orderId, status: 'DRIVER_ACCEPTED', driverId },
-      });
+      return res.status(409).json({ error: 'This trip is no longer available.' });
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Accept failed';

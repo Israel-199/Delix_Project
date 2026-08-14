@@ -6,8 +6,23 @@ import dotenv from 'dotenv';
 import 'colors';
 import apiRoutes from './src/routes/apiRoutes';
 import { upsertDriverLocation, setDriverOffline } from './src/services/driverLocationStore';
+import {
+  driverRoom,
+  registerDriverSocket,
+  unregisterSocket,
+} from './src/services/driverSocketRegistry';
+import {
+  handleDriverAccept,
+  handleDriverReject,
+  startOrderDispatch,
+  isCurrentOfferTarget,
+} from './src/services/orderDispatchService';
+import { assignDriverToOrderAtomic } from './src/services/orderAssignmentService';
 import { prisma } from './src/lib/prisma';
+import { refreshPricingCache } from './src/services/pricingService';
 import { recordDriverTripComplete } from './src/services/driverTripService';
+import { notifyOrderCustomer } from './src/services/notificationService';
+import { notifyDriver } from './src/services/driverNotificationService';
 
 dotenv.config();
 
@@ -38,6 +53,40 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 const orderRoom = (orderId: string) => `order:${orderId}`;
 
+const resolveDriverRecord = async (driverRef: string) => {
+  try {
+    return await prisma.driver.findFirst({
+      where: {
+        OR: [
+          { id: driverRef },
+          { plateNumber: driverRef },
+          { licenseNumber: driverRef },
+          { user: { phone: driverRef } },
+        ],
+      },
+      include: { user: { select: { phone: true } } },
+    });
+  } catch {
+    return null;
+  }
+};
+
+const joinDriverSocketRooms = async (socketId: string, driverRef: string, socket: import('socket.io').Socket) => {
+  const record = await resolveDriverRecord(driverRef);
+  const ids = new Set<string>([driverRef]);
+  if (record) {
+    ids.add(record.id);
+    if (record.user.phone) ids.add(record.user.phone);
+  }
+
+  for (const id of ids) {
+    socket.join(driverRoom(id));
+    registerDriverSocket(id, socketId);
+  }
+
+  return record?.id ?? driverRef;
+};
+
 const persistDriverGps = async (driverId: string, lat: number, lng: number) => {
   try {
     await prisma.driver.updateMany({
@@ -67,6 +116,12 @@ io.on('connection', (socket) => {
     socket.join('drivers_online');
   });
 
+  socket.on('register_driver', async (payload: { driverId: string }) => {
+    if (!payload?.driverId) return;
+    const canonicalId = await joinDriverSocketRooms(socket.id, payload.driverId, socket);
+    console.log(`[WebSocket] Driver ${payload.driverId} registered → room driver:${canonicalId}`.cyan);
+  });
+
   socket.on(
     'driver_location_update',
     (data: {
@@ -81,14 +136,17 @@ io.on('connection', (socket) => {
       plateNumber?: string;
       name?: string;
     }) => {
-      upsertDriverLocation(data);
-      persistDriverGps(data.driverId, data.lat, data.lng);
+      void (async () => {
+        const record = await resolveDriverRecord(data.driverId);
+        const canonicalId = record?.id ?? data.driverId;
+        upsertDriverLocation({ ...data, driverId: canonicalId });
+        persistDriverGps(canonicalId, data.lat, data.lng);
 
-      if (data.orderId) {
-        io.to(orderRoom(data.orderId)).emit('live_driver_moved', data);
-      } else {
-        io.emit('live_driver_moved', data);
-      }
+        const payload = { ...data, driverId: canonicalId };
+        if (data.orderId) {
+          io.to(orderRoom(data.orderId)).emit('live_driver_moved', payload);
+        }
+      })();
     }
   );
 
@@ -98,10 +156,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('request_cargo_delivery', (orderData: { orderId?: string; id?: string }) => {
-    console.log(`[Order] New Cargo Request received:`, orderData);
-    io.to('drivers_online').emit('incoming_delivery_alert', orderData);
-    io.emit('incoming_delivery_alert', orderData);
+  socket.on('request_cargo_delivery', async (orderData: Record<string, unknown>) => {
+    console.log(`[Order] Dispatch request received:`, orderData);
+    await startOrderDispatch(io, orderData);
   });
 
   socket.on(
@@ -110,31 +167,128 @@ io.on('connection', (socket) => {
       orderId: string;
       driverId: string;
       driverName?: string;
+      driverPhone?: string;
       plateNumber?: string;
       vehicleType?: string;
     }) => {
-      console.log(`[Order] Driver ${payload.driverId} accepted order ${payload.orderId}`.green);
+      const driverRecord = await resolveDriverRecord(payload.driverId);
+      const canonicalId = driverRecord?.id ?? payload.driverId;
+
+      if (!isCurrentOfferTarget(payload.orderId, canonicalId)) {
+        socket.emit('dispatch_error', {
+          orderId: payload.orderId,
+          message: 'This trip is no longer assigned to you.',
+        });
+        return;
+      }
+
+      const assignment = await assignDriverToOrderAtomic(payload.orderId, canonicalId);
+      if (!assignment.success) {
+        socket.emit('dispatch_error', {
+          orderId: payload.orderId,
+          message: 'This trip is no longer available.',
+        });
+        return;
+      }
+
+      handleDriverAccept(io, payload.orderId, canonicalId);
+
+      console.log(`[Order] Driver ${canonicalId} accepted order ${payload.orderId}`.green);
 
       try {
-        await prisma.order.update({
-          where: { id: payload.orderId },
-          data: { status: 'DRIVER_ACCEPTED' },
-        });
+        // Order already updated atomically; ensure driver link exists when record resolved late.
+        if (driverRecord) {
+          await prisma.order.updateMany({
+            where: { id: payload.orderId, driverId: null },
+            data: { driverId: driverRecord.id },
+          });
+        }
       } catch {
-        // Order may be in-memory only
+        // Non-blocking
       }
 
       const statusPayload = {
         orderId: payload.orderId,
         status: 'DRIVER_ACCEPTED',
-        driverId: payload.driverId,
+        driverId: canonicalId,
         driverName: payload.driverName,
+        driverPhone: payload.driverPhone ?? driverRecord?.user.phone,
         plateNumber: payload.plateNumber,
         vehicleType: payload.vehicleType,
       };
 
       io.to(orderRoom(payload.orderId)).emit('order_status_changed', statusPayload);
-      io.emit('order_status_changed', statusPayload);
+
+      await notifyOrderCustomer(
+        payload.orderId,
+        'DRIVER_FOUND',
+        'Driver found',
+        `${payload.driverName ?? 'Your driver'} is on the way to pickup.`
+      );
+    }
+  );
+
+  socket.on('reject_delivery_order', async (payload: { orderId: string; driverId: string }) => {
+    if (!payload?.orderId || !payload?.driverId) return;
+    console.log(`[Order] Driver ${payload.driverId} rejected order ${payload.orderId}`.yellow);
+    await handleDriverReject(io, payload.orderId, payload.driverId);
+  });
+
+  socket.on('driver_arrived_pickup', async (payload: { orderId: string; driverId?: string }) => {
+    if (!payload?.orderId) return;
+
+    try {
+      await prisma.order.update({
+        where: { id: payload.orderId },
+        data: { status: 'ARRIVED_PICKUP' },
+      });
+    } catch {
+      // non-blocking
+    }
+
+    io.to(orderRoom(payload.orderId)).emit('order_status_changed', {
+      orderId: payload.orderId,
+      status: 'ARRIVED_PICKUP',
+    });
+
+    await notifyOrderCustomer(
+      payload.orderId,
+      'DRIVER_ARRIVED',
+      'Driver arrived',
+      'Your driver has arrived at the pickup location.'
+    );
+  });
+
+  socket.on(
+    'start_delivery_trip',
+    async (payload: { orderId: string; driverId?: string; lat?: number; lng?: number }) => {
+      if (!payload?.orderId) return;
+
+      try {
+        await prisma.order.update({
+          where: { id: payload.orderId },
+          data: {
+            status: 'IN_TRANSIT',
+            tripStartedAt: new Date(),
+            startLat: payload.lat,
+            startLng: payload.lng,
+          },
+        });
+      } catch {
+        // non-blocking
+      }
+
+      io.to(orderRoom(payload.orderId)).emit('order_status_changed', {
+        orderId: payload.orderId,
+        status: 'IN_TRANSIT',
+      });
+
+      await notifyOrderCustomer(
+        payload.orderId,
+        'TRIP_STARTED',
+        'Trip started',
+        'Your cargo is on the way to the destination.'
+      );
     }
   );
 
@@ -164,10 +318,18 @@ io.on('connection', (socket) => {
         orderId: payload.orderId,
         status: 'DELIVERY_COMPLETED',
       });
+
+      await notifyOrderCustomer(
+        payload.orderId,
+        'DELIVERY_COMPLETED',
+        'Delivery completed',
+        'Your delivery has been completed successfully.'
+      );
     }
   );
 
   socket.on('disconnect', () => {
+    unregisterSocket(socket.id);
     console.log(`[WebSocket] Client disconnected: ${socket.id}`.yellow);
   });
 });
@@ -175,7 +337,8 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-server.listen(Number(PORT), HOST, () => {
+server.listen(Number(PORT), HOST, async () => {
+  await refreshPricingCache();
   console.log(`🚀 Delix Backend Server & WebSockets running on http://${HOST}:${PORT}`.green);
   console.log(`   Health check: http://localhost:${PORT}/api/health`.cyan);
 });
