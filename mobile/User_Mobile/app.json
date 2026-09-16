@@ -6,10 +6,6 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/images/icon.png",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#FF5722"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -19,7 +15,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#FF5722"
+        "backgroundColor": "#FFFFFF"
       },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -32,10 +28,6 @@
         }
       }
     },
-    "androidNavigationBar": {
-      "backgroundColor": "#FFFFFF",
-      "barStyle": "dark-content"
-    },
     "plugins": [
       "expo-font",
       [
@@ -44,7 +36,21 @@
           "locationWhenInUsePermission": "Allow Delix to use your location to show your position and route on the map."
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "resizeMode": "contain",
+          "backgroundColor": "#FF5722"
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "backgroundColor": "#FFFFFF",
+          "barStyle": "dark-content"
+        }
+      ]
     ],
     "extra": {
       "eas": {
