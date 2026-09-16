@@ -36,7 +36,9 @@
         {
           "locationWhenInUsePermission": "Allow Delix Driver to use your location for navigation and live tracking."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {
