@@ -34,6 +34,12 @@ const DriverLoginScreen = ({ navigation }: Props) => {
       const digits = phone.replace(/\D/g, '');
       const fullPhone = countryCode + digits.replace(/^0/, '');
       const res = await sendOtp(fullPhone);
+
+      if (res?.bypassedAuth) {
+        navigation.replace('DriverHome');
+        return;
+      }
+
       if (res?.devOtp) {
         Alert.alert(
           'Test OTP Code',

@@ -7,16 +7,15 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import MapView, { MapViewProps, Polyline, Region } from 'react-native-maps';
 import { colors, radius, shadows } from '../../design-system';
 import { fontWeight } from '../../design-system/typography';
 import { DEFAULT_MAP_REGION } from '../../constants';
 import { MapMarkerData } from '../../types';
 import { moderateScale, widthScale, heightScale } from '../../utils/responsive';
 import { regionAroundUserDetail } from '../../services/locationService';
-import { MapMarkerView } from './MapMarkerView';
+import OSMMapWebView, { OSMMarker } from './OSMMapWebView';
 
-export interface MapContainerProps extends Omit<MapViewProps, 'style'> {
+export interface MapContainerProps {
   style?: StyleProp<ViewStyle>;
   markers?: MapMarkerData[];
   routeCoordinates?: Array<{ latitude: number; longitude: number }>;
@@ -25,9 +24,14 @@ export interface MapContainerProps extends Omit<MapViewProps, 'style'> {
   onBackPress?: () => void;
   backButtonOverlay?: ReactNode;
   rightOverlay?: ReactNode;
-  initialRegion?: Region;
+  initialRegion?: { latitude: number; longitude: number; latitudeDelta?: number; longitudeDelta?: number };
   focusCoordinate?: { latitude: number; longitude: number } | null;
   mapPaddingBottom?: number;
+  scrollEnabled?: boolean;
+  zoomEnabled?: boolean;
+  rotateEnabled?: boolean;
+  pitchEnabled?: boolean;
+  children?: ReactNode;
 }
 
 const MapContainerInner = ({
@@ -45,25 +49,15 @@ const MapContainerInner = ({
   children,
   ...mapProps
 }: MapContainerProps) => {
-  const mapRef = useRef<MapView>(null);
-  const didZoomToUser = useRef(false);
-  const focusOnMount = useRef(!!focusCoordinate);
   const focusLat = focusCoordinate?.latitude;
   const focusLng = focusCoordinate?.longitude;
 
-  useEffect(() => {
-    if (focusLat == null || focusLng == null || didZoomToUser.current) return;
-
-    didZoomToUser.current = true;
-    if (focusOnMount.current) return;
-
-    const region = regionAroundUserDetail({ latitude: focusLat, longitude: focusLng });
-    const timer = setTimeout(() => {
-      mapRef.current?.animateToRegion(region, 280);
-    }, 80);
-
-    return () => clearTimeout(timer);
-  }, [focusLat, focusLng]);
+  const osmMarkers: OSMMarker[] = markers.map(m => ({
+    id: String(m.id || Math.random()),
+    coordinate: m.coordinate,
+    type: m.type as any,
+    label: m.etaMinutes ? `${m.etaMinutes} min` : undefined
+  }));
 
   const mapInitialRegion =
     focusLat != null && focusLng != null
@@ -72,36 +66,14 @@ const MapContainerInner = ({
 
   return (
     <View style={[styles.container, style]}>
-      <MapView
-        ref={mapRef}
+      <OSMMapWebView
         style={styles.map}
         initialRegion={mapInitialRegion}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        mapPadding={{
-          top: heightScale(60),
-          right: widthScale(16),
-          bottom: mapPaddingBottom + heightScale(16),
-          left: widthScale(16),
-        }}
-        {...mapProps}
-      >
-        {routeCoordinates && routeCoordinates.length > 1 ? (
-          <Polyline
-            coordinates={routeCoordinates}
-            strokeColor={routeFollowsRoads ? colors.success : colors.warning}
-            strokeWidth={5}
-            lineCap="round"
-            lineJoin="round"
-          />
-        ) : null}
-
-        {markers.map((marker) => (
-          <MapMarkerView key={marker.id} marker={marker} />
-        ))}
-
-        {children}
-      </MapView>
+        focusCoordinate={focusCoordinate}
+        markers={osmMarkers}
+        routeCoordinates={routeCoordinates}
+        paddingBottom={mapPaddingBottom}
+      />
 
       {showBackButton ? (
         <Pressable

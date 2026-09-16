@@ -29,7 +29,7 @@ interface AuthState {
   accessToken: string | null;
   user: AuthUser | null;
   setPhone: (phone: string) => void;
-  sendOtp: (phone: string) => Promise<{ devOtp?: string }>;
+  sendOtp: (phone: string) => Promise<{ devOtp?: string; bypassedAuth?: boolean }>;
   verifyAndLogin: (phone: string, otp: string) => Promise<void>;
   updateProfile: (data: ProfileUpdateData) => Promise<void>;
   fetchProfile: () => Promise<void>;
@@ -50,6 +50,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const response = await requestOtp(phone);
     const normalized = normalizePhone(phone);
     set({ phone: normalized });
+    
+    if (response.token && response.isProfileComplete) {
+      setAuthToken(response.token);
+      await tokenStorage.setToken(response.token);
+      await tokenStorage.setPhone(normalized);
+
+      set({
+        isAuthenticated: true,
+        phone: normalized,
+        accessToken: response.token,
+        user: response.user,
+      });
+      return { bypassedAuth: true };
+    }
+    
     return { devOtp: response.devOtp };
   },
 

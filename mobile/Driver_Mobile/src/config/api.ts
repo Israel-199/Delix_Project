@@ -31,11 +31,11 @@ export const DEV_API_HOST = getDevServerHost();
 
 export const API_BASE_URL = __DEV__
   ? `http://${DEV_API_HOST}:${DEV_PORT}`
-  : 'https://api.delix.app';
+  : 'https://delix-project-1.onrender.com';
 
 export const SOCKET_URL = __DEV__
   ? `http://${DEV_API_HOST}:${DEV_PORT}`
-  : 'https://api.delix.app';
+  : 'https://delix-project-1.onrender.com';
 
 if (__DEV__) {
   console.log('[Delix Driver API]', API_BASE_URL);

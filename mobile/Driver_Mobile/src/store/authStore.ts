@@ -13,7 +13,7 @@ interface DriverAuthState {
   vehicleType: string;
   name: string;
   hydrate: () => Promise<void>;
-  sendOtp: (phone: string) => Promise<{ devOtp?: string }>;
+  sendOtp: (phone: string) => Promise<{ devOtp?: string; bypassedAuth?: boolean }>;
   verifyAndLogin: (phone: string, otp: string) => Promise<void>;
   completeRegistration: (payload: {
     name: string;
@@ -108,6 +108,43 @@ export const useDriverAuthStore = create<DriverAuthState>((set, get) => ({
   sendOtp: async (phone) => {
     const res = await requestDriverOtp(phone);
     set({ phone: res.phone ?? phone });
+    
+    if (res.token && res.isProfileComplete) {
+      // User is already verified and profile is complete (bypass OTP)
+      let needsRegistration = true;
+      let driverId = phone;
+      let plateNumber = '';
+      let vehicleType = 'MINI_TRUCK';
+
+      try {
+        const profile = await fetchDriverProfile(phone);
+        if (profile.driver) {
+          driverId = profile.driver.id;
+          plateNumber = profile.driver.plateNumber || '';
+          vehicleType = profile.driver.vehicleType || 'MINI_TRUCK';
+          needsRegistration = !(profile.driver.plateNumber && profile.driver.name);
+        }
+      } catch {
+        // Keep defaults
+      }
+
+      const next = {
+        isAuthenticated: true,
+        isHydrated: true,
+        phone,
+        token: res.token,
+        driverId,
+        plateNumber,
+        vehicleType,
+        name: res.user?.name ?? 'Driver',
+        needsRegistration,
+      };
+
+      set(next);
+      await persistSession({ ...next, token: res.token });
+      return { bypassedAuth: true };
+    }
+
     return { devOtp: res.devOtp };
   },
 

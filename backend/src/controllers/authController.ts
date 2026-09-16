@@ -49,7 +49,7 @@ export const requestOtp = async (req: Request, res: Response) => {
       });
     }
 
-    // Generate random 6-digit OTP code always
+  
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore[phone] = generatedOtp;
 

@@ -1,0 +1,4538 @@
+Chapter 1 – Project Vision & Business Overview
+1.1 Document Purpose
+This document defines the technical and business foundation for the Delix Cargo Delivery Platform.
+It is the primary implementation guide for developers and AI-assisted tools such as Cursor.
+Every feature, API, user interface, workflow, database design, and system interaction must follow the requirements in this document.
+This project is intended for production deployment, not as a prototype or demonstration.
+1.2 Project Summary
+Project Name
+Delix Cargo Delivery Platform
+Platform Type
+On-Demand Cargo Transportation & Delivery Platform
+Target Countries
+Phase 1
+Ethiopia
+Djibouti
+Future Expansion
+Kenya
+Uganda
+Tanzania
+Rwanda
+South Sudan
+Other East African countries
+1.3 Business Vision
+Delix provides a modern digital platform that connects customers needing cargo transportation with verified drivers who own cargo vehicles.
+Unlike passenger ride-hailing applications, Delix focuses entirely on moving goods.
+The application enables customers to request transportation for items ranging from small documents to large construction materials using the most appropriate vehicle.
+The system automatically finds the nearest available driver with the required vehicle type, calculates the estimated route, estimated arrival time, and delivery cost, and provides real-time tracking from pickup to delivery.
+1.4 Mission
+Build the most reliable cargo transportation platform in East Africa by providing:
+Fast booking
+Transparent pricing
+Secure transactions
+Real-time tracking
+Reliable drivers
+High-quality customer experience
+Scalable technology
+1.5 Vision
+To become the leading digital logistics platform for personal and commercial cargo transportation across East Africa.
+1.6 Primary Objectives
+The platform should enable users to:
+Register using a phone number
+Verify identity with OTP
+Select pickup and destination locations
+Upload cargo details and photos
+Choose a suitable cargo vehicle
+View estimated pricing before booking
+Pay using supported payment methods
+Track the assigned driver in real time
+View delivery history and receipts
+The platform should enable drivers to:
+Register and verify documents
+Receive nearby delivery requests
+Accept or reject bookings
+Navigate to pickup and destination
+Update delivery status
+View earnings and commission
+Manage their profile and vehicle
+The platform should enable administrators to:
+Verify drivers
+Monitor active deliveries
+Manage pricing
+Manage commissions
+Review reports and analytics
+Handle support issues
+1.7 Supported Cargo Types
+The system must support transportation for:
+Furniture
+Construction Materials
+Business Goods
+Shop Deliveries
+Office Equipment
+Documents
+Electronics
+Appliances
+Household Goods
+General Cargo
+The architecture must allow additional cargo categories to be added without changing the application structure.
+1.8 Supported Vehicle Categories
+The initial release includes four vehicle categories.
+Lada
+Best for:
+Small cargo
+Documents
+Electronics
+Small furniture
+Household items
+Pickup Truck
+Best for:
+Medium furniture
+Business deliveries
+Construction tools
+Appliances
+Mini Truck
+Best for:
+Heavy furniture
+Building materials
+Bulk goods
+Large Truck
+Best for:
+Industrial cargo
+Warehouse transport
+Large commercial deliveries
+Heavy construction materials
+Each vehicle category can contain multiple service models (for example, Economy, Standard, or Heavy Duty) with different capacities and pricing.
+1.9 Core Platform Modules
+The Delix ecosystem consists of five major systems:
+User Mobile Application
+Driver Mobile Application
+Backend Services
+PostgreSQL Database
+Admin Control Panel
+Each module is developed independently while sharing common APIs and data models.
+1.10 Business Workflow
+The high-level business workflow is:
+User logs in with phone number.
+User verifies OTP.
+User enters the Home screen.
+User chooses pickup and destination.
+System calculates route, distance, and ETA.
+User selects a vehicle.
+User enters cargo information.
+User chooses a payment method.
+Booking is submitted.
+System searches for a matching driver.
+Driver accepts the request.
+User tracks the driver's arrival.
+Driver collects the cargo.
+Driver starts the delivery.
+User tracks the trip in real time.
+Driver completes the delivery.
+System records the trip and generates a receipt.
+1.11 Design Principles
+Every feature must follow these principles:
+Simplicity: keep the booking flow clear and intuitive.
+Performance: optimize for low-end Android devices as well as newer phones.
+Responsiveness: adapt gracefully to different screen sizes and orientations.
+Accessibility: provide readable typography, sufficient contrast, and touch-friendly controls.
+Scalability: design modules so they can grow without major rewrites.
+Reliability: ensure stable behavior even on slow or intermittent mobile networks.
+1.12 Production Quality Requirements
+The application must be production-ready from the beginning.
+Requirements include:
+Modular architecture
+Strong TypeScript typing
+Reusable components
+Consistent design system
+Comprehensive error handling
+Optimized database access
+Efficient network communication
+Secure authentication
+Real-time synchronization
+Maintainable codebase
+DELIX CORE GUIDE
+Chapter 2 – Business Requirements & Functional Scope
+2.1 Business Goals
+The primary objective of Delix is to modernize cargo transportation by replacing phone-call-based booking with a reliable digital platform.
+The platform should provide a simple booking experience while allowing administrators to manage pricing, drivers, deliveries, and business operations efficiently.
+The system must be scalable enough to support future expansion into additional cities and countries without major architectural changes.
+2.2 Business Problems
+Today, most cargo transportation operates manually.
+Customers usually:
+Call different drivers.
+Negotiate prices manually.
+Do not know estimated arrival times.
+Cannot track the driver's location.
+Cannot compare vehicle types.
+Have no delivery history.
+Cannot verify driver identity.
+Often experience inconsistent pricing.
+Drivers also face challenges:
+Difficulty finding customers.
+Long waiting periods.
+No centralized order management.
+No structured payment records.
+Limited business insights.
+Administrators lack:
+Real-time monitoring.
+Driver verification workflows.
+Revenue reporting.
+Pricing management tools.
+Commission management.
+2.3 Business Solution
+Delix solves these challenges by providing a unified platform where:
+Customers can:
+Book deliveries digitally.
+Receive instant price estimates.
+Choose the most suitable vehicle.
+Track deliveries live.
+View booking history.
+Pay using supported payment methods.
+Drivers can:
+Receive nearby delivery requests.
+Accept or reject orders.
+Navigate to pickup and destination.
+Complete deliveries digitally.
+Track earnings and commissions.
+Administrators can:
+Verify drivers.
+Manage pricing.
+Monitor live deliveries.
+Generate reports.
+Manage commissions and payments.
+2.4 Primary Stakeholders
+The platform serves several stakeholder groups.
+Customers
+Individuals and businesses requesting cargo transportation.
+Responsibilities:
+Create bookings.
+Provide accurate pickup and destination details.
+Describe cargo.
+Select payment methods.
+Track deliveries.
+Drivers
+Verified vehicle owners responsible for transporting cargo.
+Responsibilities:
+Maintain accurate profile information.
+Keep vehicle information updated.
+Accept or reject requests.
+Complete deliveries.
+Follow platform policies.
+Operations Team
+Responsible for overseeing daily platform operations.
+Responsibilities:
+Monitor active deliveries.
+Resolve disputes.
+Assist customers.
+Support drivers.
+Finance Team
+Responsible for financial oversight.
+Responsibilities:
+Review payments.
+Monitor commissions.
+Generate financial reports.
+Super Administrator
+Responsible for platform management.
+Responsibilities:
+Manage system settings.
+Configure pricing.
+Approve drivers.
+Manage administrators.
+Monitor system health.
+2.5 User Personas
+Persona 1 – Residential Customer
+Name: Sara
+Needs:
+Move household furniture.
+Affordable pricing.
+Reliable driver.
+Real-time tracking.
+Pain Points:
+Unpredictable prices.
+Difficulty finding available drivers.
+Persona 2 – Business Owner
+Name: Ahmed
+Needs:
+Daily cargo transportation.
+Reliable delivery records.
+Fast booking.
+Pain Points:
+Time wasted calling multiple drivers.
+No centralized history.
+Persona 3 – Lada Driver
+Name: Bekele
+Needs:
+More delivery opportunities.
+Fair commission system.
+Navigation assistance.
+Pain Points:
+Waiting for customers.
+Manual payment tracking.
+Persona 4 – Logistics Administrator
+Needs:
+View all deliveries.
+Approve drivers.
+Manage pricing.
+Monitor revenue.
+Pain Points:
+Manual spreadsheets.
+Limited visibility.
+2.6 Functional Requirements
+The system shall support the following core functions.
+Authentication
+Phone number login.
+OTP verification.
+Secure session management.
+Automatic token refresh.
+User Management
+Users shall be able to:
+View profile.
+Edit profile.
+Change language.
+Logout securely.
+Booking
+Users shall be able to:
+Select pickup location.
+Select destination.
+View estimated route.
+View ETA.
+View distance.
+Select vehicle.
+Enter cargo details.
+Upload cargo images.
+Select loading assistance.
+Select unloading assistance.
+Choose payment method.
+Confirm booking.
+Driver Matching
+The system shall:
+Search nearby drivers.
+Match by vehicle category.
+Match by availability.
+Match by distance.
+Notify multiple drivers if necessary.
+Assign the first accepted driver.
+Live Tracking
+Users shall:
+View driver location.
+View estimated arrival time.
+Follow delivery progress.
+Receive status updates.
+Payment
+Supported methods:
+Telebirr
+Commercial Bank of Ethiopia (CBE)
+Cash
+Future methods must be easy to add.
+Notifications
+The system shall notify users when:
+OTP is sent.
+Booking is confirmed.
+Driver accepts.
+Driver arrives.
+Trip starts.
+Trip completes.
+Payment succeeds or fails.
+History
+Users shall view:
+Previous deliveries.
+Booking details.
+Receipts.
+Payment history.
+2.7 Non-Functional Requirements
+Performance
+The application should:
+Launch quickly.
+Respond smoothly.
+Minimize network usage.
+Avoid unnecessary re-renders.
+Cache reusable data.
+Scalability
+The architecture must support:
+Thousands of concurrent users.
+Millions of bookings.
+Additional countries.
+Additional languages.
+New vehicle categories.
+Reliability
+The platform should:
+Recover gracefully from network interruptions.
+Prevent data loss.
+Retry failed requests when appropriate.
+Security
+The platform must:
+Use HTTPS.
+Store tokens securely.
+Validate all API requests.
+Protect against unauthorized access.
+Audit important administrative actions.
+Accessibility
+The application should:
+Use readable font sizes.
+Maintain sufficient color contrast.
+Provide touch-friendly controls.
+Support screen readers where practical.
+2.8 MVP Scope (Phase 1)
+The first production release includes:
+Phone login with OTP.
+Home screen.
+Map-based booking.
+Vehicle selection.
+Cargo information.
+Payment selection.
+Driver matching.
+Live tracking.
+Driver application.
+Admin dashboard.
+Commission management.
+Booking history.
+2.9 Future Scope (Phase 2 and Beyond)
+Planned enhancements include:
+Scheduled bookings.
+Favorite locations.
+Promo codes.
+Corporate accounts.
+Fleet management.
+In-app chat.
+Multi-stop deliveries.
+Delivery insurance.
+Electronic signatures.
+Offline map improvements.
+AI-based demand prediction.
+Advanced analytics.
+2.10 Success Metrics
+The platform will be considered successful when it achieves:
+High booking completion rate.
+Low booking cancellation rate.
+Fast driver assignment.
+Positive customer ratings.
+Stable application performance.
+High driver retention.
+Reliable payment processing.
+2.11 Business Rules
+The platform must enforce the following rules:
+Only verified drivers may receive bookings.
+Drivers can only accept bookings matching their registered vehicle category.
+A booking can only be assigned to one driver at a time.
+Users must complete OTP verification before booking.
+Prices are calculated automatically based on configured pricing rules.
+Every booking receives a unique reference number.
+Every status change is recorded in booking history.
+Administrators can override bookings only through authorized workflows.
+Commission rules are enforced after the configured trip threshold.
+All financial transactions must be logged.
+DELIX CORE GUIDE
+Chapter 3 – System Architecture & Technology Decisions
+3.1 Architecture Philosophy
+Delix is designed as a modern, scalable, high-performance cargo transportation platform.
+Every module must be independent, reusable, maintainable, and production-ready.
+The architecture must support future expansion to additional countries, vehicle categories, payment providers, and business services without requiring major code changes.
+The platform follows a modular architecture where the mobile applications, backend services, admin panel, and database communicate through secure APIs and real-time events.
+3.2 System Components
+The Delix platform consists of five primary systems.
+1. User Mobile Application
+Purpose
+Allows customers to book cargo transportation.
+Responsibilities
+User authentication
+Booking creation
+Vehicle selection
+Cargo information
+Payment selection
+Live driver tracking
+Delivery history
+Notifications
+2. Driver Mobile Application
+Purpose
+Allows drivers to receive and complete deliveries.
+Responsibilities
+Authentication
+Driver registration
+Vehicle registration
+Online/Offline status
+Receive booking requests
+Navigation
+Delivery workflow
+Wallet
+Commission
+Trip history
+3. Backend API
+Purpose
+Acts as the central business logic layer.
+Responsibilities
+Authentication
+Booking management
+Driver matching
+Pricing calculation
+Payment processing
+Notification management
+File uploads
+Socket.IO communication
+Analytics
+4. PostgreSQL Database
+Purpose
+Stores all platform data securely.
+Responsibilities
+Users
+Drivers
+Vehicles
+Bookings
+Payments
+Locations
+Notifications
+Driver Commission
+Audit Logs
+5. Admin Dashboard
+Purpose
+Manage the entire Delix platform.
+Responsibilities
+Dashboard
+Driver Approval
+Pricing
+Orders
+Payments
+Reports
+Analytics
+Settings
+3.3 High-Level Architecture
+DELIX PLATFORM
+┌─────────────────────┐
+│     User App        │
+└──────────┬──────────┘
+│
+│ HTTPS + JWT
+│
+┌──────────▼──────────┐
+│    Backend API      │
+└──────────┬──────────┘
+│
+┌─────────────────────┼─────────────────────┐
+│                     │                     │
+│                     │                     │
+┌───────▼───────┐    ┌────────▼────────┐   ┌────────▼────────┐
+│ PostgreSQL    │    │ Socket.IO       │   │ File Storage    │
+│ + PostGIS     │    │ Real-time       │   │ Images/Documents│
+└───────────────┘    └─────────────────┘   └─────────────────┘
+▲
+│
+┌──────────┴──────────┐
+│    Driver App       │
+└─────────────────────┘
+│
+┌──────────▼──────────┐
+│   Admin Dashboard   │
+└─────────────────────┘
+3.4 Mobile Technology Stack
+The User App and Driver App should share the same technology stack.
+Framework
+React Native
+Expo SDK 54+
+TypeScript
+State Management
+Zustand
+Separate stores should be used for:
+Authentication
+Booking
+Driver
+Location
+Notifications
+Settings
+Socket Connection
+Avoid unnecessary global state.
+API Communication
+Axios
+Requirements
+Global API instance
+Request interceptors
+Response interceptors
+Automatic JWT attachment
+Automatic refresh token
+Retry mechanism for temporary failures
+Global error handling
+Form Handling
+React Hook Form
+Reasons
+Better performance
+Less re-rendering
+Easy validation
+Validation
+Zod
+All form validation should use shared schemas.
+Never duplicate validation logic.
+Localization
+i18next
+Languages
+English
+Amharic
+Afaan Oromo
+Somali
+All UI text must come from translation files.
+Notifications
+Expo Notifications
+Support
+Booking updates
+Driver accepted
+Driver arrived
+Trip started
+Delivery completed
+Promotional notifications
+Image Loading
+expo-image
+Requirements
+Memory caching
+Disk caching
+Placeholder support
+Smooth fade animations
+3.5 Backend Technology Stack
+Backend Framework
+Node.js
+Express.js
+TypeScript
+ORM
+Drizzle ORM
+Reasons
+Excellent TypeScript support
+Fast queries
+Type-safe SQL
+PostgreSQL optimized
+Database
+PostgreSQL
+Extensions
+PostGIS
+UUID
+pgcrypto
+Authentication
+JWT
+Refresh Tokens
+Phone OTP
+Passwords
+Not applicable.
+Users authenticate using phone numbers and OTP.
+Real-Time Communication
+Socket.IO
+Used for
+Driver location
+Booking updates
+Live tracking
+Notifications
+Driver availability
+File Upload
+Support uploads for
+Profile photos
+Vehicle photos
+Cargo photos
+Driver documents
+Files should be validated before storage.
+3.6 Database Architecture
+Database must follow normalization principles.
+Recommended
+Third Normal Form (3NF)
+Goals
+Reduce duplication
+Improve consistency
+Simplify maintenance
+All tables should use UUID primary keys.
+Soft deletes should be used where appropriate.
+Timestamps should be included on all major tables.
+3.7 Maps & Navigation Architecture
+Delix will use an open-source mapping stack to minimize recurring costs.
+Map Rendering
+MapLibre React Native
+Base Map
+OpenStreetMap (OSM)
+Routing
+OSRM
+Provides
+Route geometry
+Distance
+Estimated travel time (ETA)
+Geocoding
+Nominatim
+Provides
+Address search
+Reverse geocoding
+Place suggestions
+Spatial Data
+PostGIS
+Used for
+Driver proximity
+Distance calculations
+Nearby searches
+Geofencing (future)
+Map Features
+Current location
+Pickup marker
+Destination marker
+Driver marker
+Route polyline
+ETA display
+Distance display
+Custom vehicle icons
+Smooth camera animations
+The map layer must be abstracted so that routing or geocoding providers can be replaced in the future without affecting the application UI.
+3.8 API Design Principles
+RESTful APIs
+Versioned endpoints
+Example
+/api/v1/users
+/api/v1/bookings
+/api/v1/drivers
+/api/v1/payments
+Use consistent HTTP status codes.
+Return standardized response formats.
+Validate all incoming requests.
+Log server errors.
+3.9 Real-Time Architecture
+Socket.IO should manage live communication.
+Events include
+Driver Connected
+Driver Disconnected
+Driver Location Updated
+Booking Created
+Booking Accepted
+Driver Arrived
+Trip Started
+Trip Completed
+Booking Cancelled
+Notification Sent
+Sockets should reconnect automatically after network interruptions.
+3.10 Security Architecture
+All communication must use HTTPS.
+Use JWT for authentication.
+Store tokens securely on the device.
+Validate every request on the server.
+Protect sensitive endpoints with authorization middleware.
+Rate-limit authentication and OTP endpoints.
+Audit administrative actions.
+3.11 Scalability Considerations
+The architecture should support:
+Horizontal backend scaling
+Load balancing
+Database replication (future)
+CDN for static assets
+Caching (future)
+Message queues for background jobs (future)
+Business logic should remain independent from infrastructure so components can evolve without major refactoring.
+3.12 Development Standards
+Every implementation must follow:
+Clean Architecture
+SOLID principles
+Feature-based folder structure
+Strict TypeScript
+Reusable components
+Reusable services
+Reusable hooks
+Consistent naming conventions
+Clear documentation
+Unit-testable code where practical
+Avoid duplicated logic and tightly coupled modules.
+DELIX CORE GUIDE
+Chapter 4 – UI/UX Design System & Design Standards
+4.1 Purpose
+This chapter defines the official design system for the Delix platform.
+Every screen in the User App, Driver App, and Admin Panel must follow these design standards to ensure a consistent, modern, and professional user experience.
+The UI should feel premium while remaining simple, fast, and intuitive.
+The application should be comparable in quality to platforms like Uber, Bolt, Lalamove, and Porter, while maintaining a unique Delix identity.
+4.2 Brand Identity
+Delix is a logistics and cargo transportation company.
+The visual identity should communicate:
+Trust
+Speed
+Reliability
+Professionalism
+Simplicity
+Safety
+Modern Technology
+Avoid playful or overly decorative designs. The interface should look suitable for business users and everyday customers.
+4.3 Brand Colors
+These colors are mandatory throughout the platform.
+Primary Color
+Delix Blue
+#0B3C8A
+Used for:
+Primary buttons
+Active navigation
+Primary icons
+Headers
+Loading indicators
+Selected cards
+Links
+Secondary Color
+Safety Green
+#A3E635
+Used for:
+Success states
+Confirmation badges
+Selected vehicle highlights
+Positive status indicators
+Promotional labels
+Background
+#FFFFFF
+Primary application background.
+Secondary Background
+#F8FAFC
+Used for:
+Cards
+Bottom sheets
+Lists
+Sections
+Border Color
+#E5E7EB
+Divider Color
+#EEF2F7
+Primary Text
+#111827
+Secondary Text
+#6B7280
+Placeholder Text
+#9CA3AF
+Error
+#EF4444
+Warning
+#F59E0B
+Success
+#22C55E
+4.4 Typography
+Typography should prioritize readability.
+Font Family
+Android
+Noto Sans
+iOS
+System Font
+Future support
+Noto Sans Ethiopic
+Font Sizes
+Large Display
+36
+Screen Title
+30
+Section Title
+24
+Card Title
+20
+Subtitle
+18
+Body
+16
+Secondary Text
+14
+Caption
+12
+Small Label
+10
+Never use font sizes below 12 unless absolutely necessary.
+4.5 Spacing System
+Spacing should remain consistent throughout the application.
+Use an 8-point spacing system.
+Standard values:
+4
+8
+12
+16
+20
+24
+32
+40
+48
+64
+Never use random spacing values.
+4.6 Corner Radius
+Buttons
+16px
+Cards
+20px
+Bottom Sheets
+28px
+Input Fields
+14px
+Dialogs
+24px
+Vehicle Cards
+24px
+Map Bottom Sheet
+32px
+4.7 Shadows
+Cards should use subtle shadows.
+Avoid heavy shadows.
+Recommended:
+Small Shadow
+Cards
+Medium Shadow
+Bottom Sheets
+Large Shadow
+Floating Action Buttons
+The application should feel light and modern.
+4.8 Icons
+Use:
+Material Symbols
+or
+Lucide Icons
+Icons should be:
+Simple
+Rounded
+Consistent
+Avoid mixing icon libraries.
+4.9 Buttons
+Primary Button
+Background
+Primary Blue
+Text
+White
+Radius
+16
+Height
+56
+Width
+Responsive
+Secondary Button
+White Background
+Blue Border
+Blue Text
+Danger Button
+Red Background
+White Text
+Disabled Button
+Gray Background
+Gray Text
+4.10 Inputs
+Input fields should contain:
+Leading Icon
+Label
+Placeholder
+Validation Message
+Focus Animation
+Rounded Corners
+Soft Border
+Support:
+Phone
+OTP
+Search
+Cargo Description
+Special Instructions
+4.11 Cards
+The application relies heavily on cards.
+Cards should include:
+Rounded corners
+Padding
+Shadow
+Clear hierarchy
+Examples:
+Vehicle Card
+Driver Card
+Booking Card
+History Card
+Payment Card
+Promotion Card
+4.12 Bottom Sheets
+Bottom sheets are a core interaction pattern.
+Use draggable sheets for:
+Vehicle Selection
+Payment Selection
+Cargo Information
+Driver Information
+Booking Summary
+Trip Details
+Rules:
+Rounded top corners
+Drag handle
+Smooth animation
+Scrollable content
+Responsive height
+4.13 Navigation
+The User App should not use a bottom tab bar.
+Navigation style:
+Stack Navigation
+Drawer Navigation
+Full Screen Pages
+Bottom Sheets
+This keeps the experience focused on booking and maps.
+4.14 Animation Guidelines
+Animations should be smooth and purposeful.
+Recommended duration:
+150–300 milliseconds for simple interactions.
+Use animations for:
+Screen transitions
+Button presses
+Bottom sheet expansion
+Vehicle selection
+Loading indicators
+Driver search
+Map camera movement
+Status changes
+Avoid excessive animations that may reduce performance.
+4.15 Responsive Design
+The application must adapt to:
+Small Android phones
+Large Android phones
+Foldable devices (where possible)
+Tablets (future support)
+Guidelines:
+Use flexible layouts.
+Avoid fixed widths.
+Respect safe area insets.
+Prevent text clipping in all supported languages.
+Ensure touch targets remain large enough on every device.
+4.16 Accessibility
+Support:
+High contrast text
+Large touch areas
+Screen reader compatibility where practical
+Scalable text
+Clear focus states
+Color choices that do not rely solely on color to convey meaning
+4.17 Map Design
+The map is the central element of the booking experience.
+Requirements:
+Clean, uncluttered appearance
+Custom vehicle markers
+Distinct pickup marker
+Distinct destination marker
+Smooth route polyline
+Animated driver movement
+Visible ETA and distance
+Draggable bottom sheet over the map
+The map should remain responsive while panning, zooming, or tracking live driver updates.
+4.18 Vehicle Cards
+Each vehicle category (Lada, Pickup, Mini Truck, Large Truck) should display multiple service models.
+Each vehicle card should include:
+Vehicle image
+Vehicle model name
+Capacity
+Recommended cargo types
+Estimated arrival time
+Estimated price
+Short description
+"Select" button
+Selected cards should visually stand out using the Delix primary and secondary colors.
+4.19 Loading States
+Use skeleton loaders instead of blank screens.
+Show loading indicators for:
+Initial app launch
+Booking submission
+Driver search
+History loading
+Profile loading
+Payment processing
+4.20 Empty States
+Every list should have an informative empty state.
+Examples:
+No delivery history.
+No notifications.
+No saved locations.
+No internet connection.
+Include an illustration, a short explanation, and a primary action when appropriate.
+4.21 Error States
+Display clear, actionable messages.
+Examples:
+Failed to load map
+Network unavailable
+Payment failed
+Booking could not be created
+OTP verification failed
+Provide retry options whenever possible.
+4.22 Cursor UI Instructions (Mandatory)
+Before implementing any screen, Cursor must:
+Analyze the uploaded UI reference images.
+Use them only as layout and UX inspiration.
+Redesign the interface using Delix branding.
+Follow the color palette, spacing, typography, and component standards defined in this chapter.
+Prioritize responsiveness, performance, and accessibility.
+Reuse components to maintain visual consistency across the application.
+Do not copy another application's branding or assets.
+DELIX CORE GUIDE
+Chapter 5 – Navigation Architecture & Complete User Flow
+5.1 Purpose
+This chapter defines how users move through the Delix platform.
+Every navigation transition, business process, and application state must follow this architecture.
+The goal is to create a simple, intuitive, and efficient experience with the fewest possible steps while maintaining flexibility for future enhancements.
+The User App is designed around a map-first experience rather than a traditional tab-based application.
+5.2 Navigation Philosophy
+The application should feel natural and easy to use.
+The navigation should minimize unnecessary screens and keep users focused on completing a booking.
+The navigation architecture must:
+Reduce the number of taps required.
+Avoid confusing navigation loops.
+Maintain state during the booking process.
+Support deep linking in the future.
+Provide smooth screen transitions.
+The User App must not use a bottom tab bar.
+Instead, navigation should rely on:
+Stack Navigation
+Full-screen pages
+Draggable bottom sheets
+Side Drawer (accessible after login)
+5.3 Main Navigation Flow
+Splash Screen
+│
+▼
+Phone Number Login
+│
+▼
+OTP Verification
+│
+▼
+Home Screen
+│
+▼
+Where To?
+│
+▼
+Map Screen
+│
+▼
+Select Pickup
+│
+▼
+Select Destination
+│
+▼
+Route Preview
+│
+▼
+Vehicle Selection
+│
+▼
+Vehicle Details
+│
+▼
+Cargo Information
+│
+▼
+Payment Method
+│
+▼
+Booking Summary
+│
+▼
+Searching Driver
+│
+▼
+Driver Accepted
+│
+▼
+Driver Arriving
+│
+▼
+Cargo Picked Up
+│
+▼
+Trip In Progress
+│
+▼
+Delivery Completed
+│
+▼
+Receipt & Rating
+5.4 Authentication Flow
+App Launch
+↓
+Check Secure Storage
+↓
+Access Token Exists?
+↓
+YES
+↓
+Validate Token
+↓
+Valid
+↓
+Home Screen
+OR
+Expired
+↓
+Refresh Token
+↓
+Success
+↓
+Home Screen
+↓
+Failed
+↓
+Login Screen
+----------------------------
+NO TOKEN
+↓
+Phone Login
+↓
+OTP
+↓
+Home Screen
+5.5 Home Screen Flow
+The Home Screen is the starting point after successful authentication.
+The screen should display:
+Current location
+Greeting
+Search field ("Where to?")
+Quick vehicle categories
+Recent bookings
+Promotional banner (optional)
+Drawer button
+Notification icon
+When the user taps "Where to?", the application opens the full-screen Map Booking experience.
+5.6 Booking Flow
+The booking process consists of the following stages:
+Stage 1 – Select Pickup
+The application should:
+Detect the current location.
+Allow manual search.
+Allow map pin selection.
+Allow selecting from recent locations.
+Once confirmed, proceed to destination selection.
+Stage 2 – Select Destination
+The user chooses the delivery destination using:
+Search
+Map
+Recent locations
+Saved places (future)
+After confirmation:
+Display the complete route.
+Calculate distance.
+Calculate estimated travel time.
+Stage 3 – Vehicle Selection
+Display the available vehicle categories.
+Lada
+Pickup Truck
+Mini Truck
+Large Truck
+Each category should expand into multiple service models.
+Example:
+Lada
+Economy
+Standard
+Cargo Plus
+Each card displays:
+Vehicle image
+Capacity
+ETA
+Estimated price
+Recommended cargo
+Stage 4 – Vehicle Details
+After selecting a service model, open a full-screen bottom sheet.
+Display:
+Vehicle image
+Vehicle model
+Capacity
+Cargo recommendations
+Estimated arrival
+Estimated price
+Service description
+Continue button
+Do not display driver information at this stage.
+Stage 5 – Cargo Information
+The user enters:
+Cargo category
+Description
+Optional cargo photos
+Loading assistance
+Unloading assistance
+Special instructions
+Validate all required fields before continuing.
+Stage 6 – Payment Selection
+Display payment options:
+Telebirr
+Commercial Bank of Ethiopia (CBE)
+Cash
+Show the selected option clearly.
+Allow the user to change the payment method before confirming the booking.
+Stage 7 – Booking Summary
+Display a final summary including:
+Pickup location
+Destination
+Vehicle model
+Cargo details
+Additional services
+Distance
+ETA
+Estimated cost
+Payment method
+The user taps "Confirm Booking".
+5.7 Driver Matching Flow
+After booking confirmation:
+Booking Created
+↓
+Search Nearby Drivers
+↓
+Filter By Vehicle Category
+↓
+Filter By Availability
+↓
+Sort By Distance
+↓
+Send Request
+↓
+Driver Accepts?
+↓
+YES
+↓
+Assign Driver
+↓
+Notify User
+↓
+Live Tracking
+-----------------
+NO
+↓
+Try Next Driver
+↓
+Continue Until Timeout
+↓
+No Driver Found
+↓
+Suggest Retry
+5.8 Driver Tracking Flow
+After a driver accepts the booking, the user sees:
+Driver profile photo
+Driver name
+Phone number
+Vehicle type
+Vehicle plate number
+Estimated arrival
+Live vehicle location on the map
+The user may:
+Call the driver
+Cancel (only before pickup, subject to business rules)
+View live ETA updates
+5.9 Delivery Workflow
+The delivery progresses through the following statuses:
+Booking Created
+Driver Assigned
+Driver En Route to Pickup
+Driver Arrived
+Cargo Loaded
+Delivery Started
+In Transit
+Driver Near Destination
+Delivery Completed
+Each status change should:
+Update the UI.
+Trigger a notification.
+Be recorded in booking history.
+5.10 Booking Cancellation Flow
+Cancellation rules:
+Before Driver Assignment
+The user may cancel without penalty.
+After Driver Assignment
+Cancellation may require confirmation.
+The backend should determine whether any cancellation fee applies based on business policy.
+After Cargo Pickup
+The booking cannot be canceled through the app.
+Any exceptions must be handled by support or administrators.
+5.11 Error Recovery Flow
+The application must gracefully recover from common issues.
+Examples:
+Network interruption
+GPS unavailable
+Map service failure
+Payment failure
+OTP expiration
+Driver unavailable
+In each case:
+Display a clear message.
+Preserve user-entered data where possible.
+Offer a retry action.
+Avoid forcing the user to restart the booking.
+5.12 Notifications Flow
+Users should receive notifications for:
+OTP sent
+OTP verified
+Booking confirmed
+Driver assigned
+Driver arriving
+Cargo picked up
+Delivery started
+Driver near destination
+Delivery completed
+Payment status
+Promotional messages (optional)
+Notifications should support both in-app display and push notifications.
+5.13 Side Drawer Navigation
+The drawer is available after login.
+Recommended items:
+My Profile
+My Deliveries
+Notifications
+Language
+Help & Support
+Terms & Conditions
+Privacy Policy
+About Delix
+Logout
+The drawer should not interrupt an active booking. If a booking is in progress, opening the drawer should not reset the booking state.
+5.14 Future Navigation Considerations
+The architecture should allow future additions without major restructuring, including:
+Favorite locations
+Scheduled bookings
+Corporate accounts
+Fleet management
+Multi-stop deliveries
+In-app chat
+Referral program
+Navigation should remain modular to support these features.
+5.15 Cursor Implementation Instructions
+Before implementing navigation:
+Analyze the existing navigation structure in the project.
+Reuse existing navigation patterns where appropriate.
+Avoid introducing unnecessary navigation complexity.
+Keep booking state persistent across screens.
+Use smooth transitions and bottom sheets for booking-related interactions.
+Ensure navigation behaves consistently on Android and iOS.
+DELIX CORE GUIDE
+Chapter 6 – Performance, Scalability & Development Standards
+6.1 Purpose
+This chapter defines the technical standards required to build a fast, scalable, secure, and maintainable Delix platform.
+Every developer and Cursor AI implementation must follow these standards.
+The objective is to ensure the application performs reliably on low-end and high-end devices while supporting future growth.
+6.2 Performance Goals
+The platform should feel responsive from the first interaction.
+Target performance goals:
+Application cold start: less than 3 seconds
+Screen transition: less than 300 milliseconds
+API response (average): less than 500 milliseconds
+Map interaction: smooth at 60 FPS
+Vehicle list rendering: less than 200 milliseconds
+Booking creation: less than 2 seconds
+Live location updates: every 3–5 seconds (configurable)
+Performance must remain stable even when many users are active.
+6.3 Mobile Performance Standards
+The User App and Driver App must:
+Avoid unnecessary component re-renders.
+Use memoized components where beneficial.
+Load only required data.
+Lazy load heavy screens.
+Cache images.
+Reuse UI components.
+Minimize bundle size.
+Avoid blocking the main thread.
+Never fetch data that is not immediately needed.
+6.4 State Management Standards
+Use Zustand for global state.
+Create separate stores for each feature.
+Recommended stores:
+authStore
+bookingStore
+locationStore
+driverStore
+vehicleStore
+paymentStore
+notificationStore
+socketStore
+settingsStore
+profileStore
+Guidelines:
+Keep stores focused on one responsibility.
+Avoid storing derived data if it can be computed.
+Reset temporary state after booking completion.
+Persist only data that should survive app restarts (for example, authentication and language).
+6.5 API Standards
+All API requests should pass through a shared API service.
+Requirements:
+One Axios instance.
+Request interceptor.
+Response interceptor.
+Automatic JWT attachment.
+Automatic token refresh.
+Standardized error handling.
+Timeout configuration.
+Retry temporary failures when appropriate.
+Do not call APIs directly from UI components.
+6.6 Caching Strategy
+Use caching to reduce unnecessary network requests.
+Recommended caching:
+User profile
+Vehicle categories
+Pricing configuration
+Supported cargo categories
+Static application settings
+Do not cache:
+Driver locations
+Live booking status
+Payment confirmations
+These must always use fresh data.
+6.7 Image Optimization
+All uploaded images should be optimized before display.
+Guidelines:
+Compress images where appropriate.
+Cache downloaded images.
+Display placeholders while loading.
+Use responsive image sizes.
+Remove unused metadata before upload if supported.
+Image types include:
+Profile photos
+Vehicle photos
+Cargo photos
+Driver documents
+6.8 Map Performance
+The map is the most resource-intensive component.
+Optimize by:
+Rendering only visible markers.
+Clustering markers if necessary in future versions.
+Updating only changed driver positions.
+Limiting unnecessary camera movements.
+Avoiding repeated route calculations.
+Reusing map layers and icons.
+6.9 Socket.IO Standards
+Socket connections should:
+Connect only after authentication.
+Automatically reconnect after temporary network loss.
+Handle duplicate events safely.
+Disconnect cleanly during logout.
+Recommended events:
+booking_created
+booking_accepted
+driver_location_updated
+driver_arrived
+trip_started
+trip_completed
+notification_received
+6.10 Database Performance Standards
+The database must be optimized for both read and write operations.
+Requirements:
+Use UUID primary keys.
+Create indexes on frequently queried columns.
+Normalize data.
+Avoid duplicate records.
+Use transactions for critical operations.
+Optimize joins.
+Support pagination.
+Frequently queried fields should be indexed, such as:
+Phone number
+Booking status
+Driver status
+Vehicle category
+Created date
+Geographic location (using PostGIS)
+6.11 Backend Performance Standards
+The backend should:
+Validate all requests.
+Return only required fields.
+Avoid unnecessary database queries.
+Use asynchronous processing where appropriate.
+Log errors without exposing sensitive information.
+Keep controllers thin and business logic inside services.
+6.12 Security Standards
+Authentication:
+Phone number + OTP only.
+JWT access tokens.
+Refresh tokens.
+Communication:
+HTTPS for all requests.
+Secure WebSocket connections.
+Data:
+Validate all input.
+Sanitize uploaded files.
+Enforce authorization checks.
+Never expose internal server errors to clients.
+Administrative actions should be logged for auditing.
+6.13 Coding Standards
+General rules:
+Use TypeScript in strict mode.
+Follow consistent naming conventions.
+Write reusable components.
+Keep functions small and focused.
+Avoid duplicated logic.
+Separate UI, business logic, and data access.
+Document complex logic.
+Folder names, file names, and component names should remain consistent throughout the project.
+6.14 Git Workflow
+Recommended branch structure:
+main
+develop
+feature/*
+bugfix/*
+hotfix/*
+release/*
+Every feature should be developed in its own branch and merged through code review.
+6.15 Testing Strategy
+Testing should include:
+Unit tests for business logic.
+Integration tests for APIs.
+End-to-end testing for critical booking flows.
+Manual testing on multiple Android devices.
+Network interruption scenarios.
+GPS disabled scenarios.
+Payment failure scenarios.
+6.16 Monitoring & Logging
+The platform should log:
+API errors
+Authentication failures
+Booking failures
+Payment failures
+Driver matching errors
+Socket connection issues
+Logs should support troubleshooting without exposing user-sensitive information.
+6.17 Production Readiness Checklist
+Before release, verify:
+All screens are responsive.
+No hardcoded strings.
+Localization works.
+Authentication is secure.
+Booking flow completes successfully.
+Driver tracking functions correctly.
+Payment methods are operational.
+Error handling is complete.
+Performance targets are met.
+Database queries are optimized.
+Accessibility requirements are satisfied.
+6.18 Cursor AI Implementation Rules
+Before writing code, Cursor must:
+Analyze the existing project structure.
+Reuse existing components, hooks, and services.
+Avoid recreating working functionality.
+Follow this Core Guide as the source of truth.
+Use uploaded UI images only as design references.
+Keep code modular, reusable, and production-ready.
+Prioritize performance, scalability, and maintainability.
+Ensure every screen is responsive across supported devices.
+Optimize database interactions and API requests.
+Write code suitable for deployment to production without relying on placeholder implementations.
+DELIX CORE GUIDE
+Chapter 7 – Global Business Rules & System Standards
+7.1 Purpose
+This chapter defines the business rules that apply across the entire Delix platform.
+Every application (User App, Driver App, Backend, Database, and Admin Panel) must follow these rules.
+Business rules must be enforced by the backend. The mobile applications should provide a clear user experience, but the backend is the final authority for validation and decision-making.
+7.2 User Rules
+A customer must:
+Register using a valid phone number.
+Verify the phone number with OTP before accessing the platform.
+Maintain one active account per phone number.
+Provide accurate pickup and destination locations.
+Select the correct cargo category.
+Choose an appropriate vehicle type.
+Accept the displayed estimated price before confirming a booking.
+A user cannot:
+Create multiple active accounts with the same phone number.
+Create a booking without OTP verification.
+Modify a booking after the driver has started the trip.
+Submit incomplete booking information.
+7.3 Driver Rules
+A driver must:
+Complete registration.
+Upload all required documents.
+Wait for administrator approval.
+Register at least one vehicle.
+Keep vehicle information accurate.
+Enable location services while online.
+A driver cannot:
+Receive bookings before approval.
+Receive bookings while offline.
+Accept bookings for vehicle categories that do not match their registered vehicle.
+Accept multiple active deliveries at the same time unless future multi-order support is introduced.
+7.4 Vehicle Rules
+Supported vehicle categories:
+Lada
+Pickup Truck
+Mini Truck
+Large Truck
+Each category may contain multiple service models.
+Example:
+Lada
+Economy
+Standard
+Cargo Plus
+Pickup
+Economy
+Standard
+Premium
+Mini Truck
+Standard
+Heavy Duty
+Large Truck
+Standard
+Industrial
+Each vehicle model should define:
+Capacity
+Maximum load
+Recommended cargo
+Base price
+Price per kilometer
+Estimated arrival multiplier
+Vehicle configuration must be managed from the Admin Panel without requiring application updates.
+7.5 Booking Rules
+A booking must include:
+Pickup location
+Destination
+Vehicle category
+Vehicle model
+Cargo category
+Payment method
+Optional fields:
+Cargo description
+Cargo images
+Loading assistance
+Unloading assistance
+Special instructions
+A booking receives a unique booking reference generated by the backend.
+7.6 Pricing Rules
+The final booking price is calculated by the backend.
+Pricing factors include:
+Base vehicle price
+Distance
+Vehicle model
+Cargo category
+Loading service
+Unloading service
+Dynamic pricing (future)
+Promotional discounts (future)
+The User App should display an estimated price before booking confirmation.
+The backend calculates the final payable amount.
+7.7 Driver Matching Rules
+When a booking is created:
+Search drivers within the configured search radius.
+Filter by vehicle category.
+Filter by approval status.
+Filter by online status.
+Filter by availability.
+Sort by shortest estimated arrival time.
+Send the booking request.
+Wait for a response.
+If rejected or timed out, continue with the next driver.
+Continue until a driver accepts or the search limit is reached.
+7.8 Booking Status Lifecycle
+Every booking follows the same status flow.
+Draft
+↓
+Pending
+↓
+Searching Driver
+↓
+Driver Assigned
+↓
+Driver En Route
+↓
+Driver Arrived
+↓
+Cargo Loaded
+↓
+Trip Started
+↓
+In Transit
+↓
+Near Destination
+↓
+Completed
+Alternative statuses:
+Cancelled
+Failed
+Expired
+Rejected
+Status changes must always be recorded in booking history.
+7.9 Payment Rules
+Supported payment methods:
+Telebirr
+Commercial Bank of Ethiopia (CBE)
+Cash
+Business rules:
+Payment method is selected before booking confirmation.
+Online payments require backend verification.
+Cash payments are marked as pending until delivery completion.
+Every payment creates a transaction record.
+7.10 Commission Rules
+Drivers operate on a commission cycle.
+Initial business rule:
+Driver completes 10 successful deliveries.
+The app temporarily pauses new booking assignments.
+Driver is prompted to pay the required commission through Telebirr.
+After successful payment verification, booking assignments resume.
+The commission cycle value should be configurable from the Admin Panel.
+7.11 Location Rules
+The application must:
+Request location permission during onboarding.
+Allow manual location selection.
+Detect the user's current location when permission is granted.
+Support GPS updates during active deliveries.
+Preserve selected pickup and destination until the booking is completed or canceled.
+7.12 Notification Rules
+Users receive notifications for:
+OTP sent
+OTP verified
+Booking confirmed
+Driver assigned
+Driver arrived
+Trip started
+Delivery completed
+Payment completed
+Booking canceled
+Drivers receive notifications for:
+New booking request
+Booking canceled
+Commission reminder
+Payment confirmation
+Account approval
+Document rejection
+7.13 Data Validation Rules
+All data entered by users must be validated.
+Examples:
+Phone Number
+Required
+Ethiopian and Djiboutian formats
+Numeric characters only
+OTP
+Required
+Fixed length
+Expiration time enforced
+Cargo Description
+Maximum character limit
+Remove unsupported characters
+Prevent malicious input
+Image Upload
+Supported formats only
+File size limit
+Virus scanning (future)
+7.14 Error Handling Standards
+All applications must handle errors consistently.
+Display:
+Clear title
+Simple explanation
+Retry action when appropriate
+Contact support option if necessary
+Avoid exposing technical error messages to end users.
+7.15 Audit & Activity Logging
+The backend must record important events, including:
+User registration
+Driver registration
+Driver approval
+Booking creation
+Booking cancellation
+Booking completion
+Payment confirmation
+Commission payment
+Administrative actions
+Audit records should include:
+Timestamp
+User or driver ID
+Action performed
+IP address (if available)
+Device information (where appropriate)
+7.16 Future Expansion Rules
+The platform should be designed to support future additions without major architectural changes, including:
+Scheduled bookings
+Multi-stop deliveries
+Corporate accounts
+Fleet management
+Promo codes
+Referral programs
+Additional countries
+Additional languages
+Additional payment providers
+Future features should integrate into the existing architecture without requiring significant redesign.
+7.17 Cursor Implementation Checklist
+Before implementing any feature, Cursor must:
+Analyze the existing project.
+Follow the Core Guide as the primary reference.
+Reuse existing components and utilities.
+Follow the design system.
+Build responsive layouts.
+Optimize database interactions.
+Write modular, maintainable code.
+Avoid unnecessary dependencies.
+Ensure every feature is production-ready.
+Keep business logic in the backend whenever possible.
+DELIX USER APP IMPLEMENTATION GUIDE
+Version 1.0 — User Mobile Application Build Specification
+1. Introduction
+The Delix User App is the customer-facing mobile application that allows users to discover services, place orders, track deliveries, communicate with providers, manage payments, and review completed services.
+This document defines the complete implementation requirements for the mobile application, including:
+Screen structures
+UI components
+State management
+API integration
+Validation rules
+Loading states
+Error handling
+Animations
+User interactions
+Navigation behavior
+Responsive design requirements
+The objective is to provide a production-ready specification that developers can directly follow during implementation.
+2. User App Goals
+The Delix User App must provide:
+Core User Experience
+Users should be able to:
+Create an account
+Authenticate securely
+Manage their profile
+Browse available services
+Search and filter providers
+View provider details
+Request a service
+Configure order details
+Make payments
+Track order progress
+Receive notifications
+Communicate with providers
+Rate completed services
+View order history
+3. Application Architecture
+Frontend Stack
+Recommended implementation:
+Mobile Framework
+React Native + Expo
+Purpose:
+Cross-platform Android/iOS support
+Faster development cycle
+Native performance
+Easy deployment
+Programming Language
+TypeScript
+Requirements:
+Strict typing enabled
+Shared interfaces
+API response typing
+Component prop validation
+UI Layer
+Recommended:
+React Native components
+NativeWind / Tailwind CSS
+Custom reusable design system
+State Management
+Application state:
+Zustand
+Used for:
+Authentication state
+User profile
+Cart/order state
+App preferences
+Notifications
+Server state:
+TanStack Query
+Used for:
+API fetching
+Cache management
+Background refresh
+Mutation handling
+4. Delix Design System
+Brand Identity
+The application must maintain a modern delivery/service marketplace appearance.
+Design principles:
+Simple
+Fast
+Trustworthy
+Premium
+Accessible
+5. Color System
+Primary Color
+Delix Primary:
+#0B3C8A
+Usage:
+Headers
+Primary buttons
+Active navigation
+Brand elements
+Secondary Color
+Delix Accent:
+#A3E635
+Usage:
+Success states
+Highlights
+Promotions
+Action indicators
+Neutral Colors
+Background:
+#FFFFFF
+Surface:
+#F8FAFC
+Border:
+#E2E8F0
+Text Primary:
+#111827
+Text Secondary:
+#64748B
+Error:
+#EF4444
+Success:
+#22C55E
+6. Typography System
+Recommended font:
+Inter / Noto Sans
+Font weights:
+Heading
+Bold
+Examples:
+Screen titles
+Section headers
+Body
+Regular
+Examples:
+Description
+Information text
+Button
+Semi-bold
+Examples:
+Submit actions
+Navigation actions
+7. Application Navigation
+The User App uses bottom tab navigation.
+Main tabs:
+Home
+Explore
+Orders
+Messages
+Profile
+Navigation Structure
+App
+│
+├── Splash
+│
+├── Onboarding
+│
+├── Authentication
+│
+│
+└── Main App
+│
+├── Home
+│
+├── Explore
+│
+├── Orders
+│
+├── Messages
+│
+└── Profile
+8. Global Application Behavior
+Safe Area
+Every screen must support:
+Android status bar
+iOS notch
+Bottom gesture area
+Implementation:
+SafeAreaView
+or
+react-native-safe-area-context
+Loading Behavior
+Every API screen requires:
+Initial Loading
+Display:
+Skeleton UI
+Shimmer animation
+Avoid:
+Empty white screen
+Frozen interface
+Error Handling
+Every API request must support:
+States:
+Loading
+Success
+Empty
+Error
+Retry
+Example:
+Unable to load services.
+Try Again
+9. Splash Screen Implementation
+Purpose
+The splash screen introduces the Delix brand while the application initializes.
+Splash UI
+Structure:
+--------------------------------
+DELIX LOGO
+Deliver Faster
+Live Better
+Loading indicator
+--------------------------------
+Components
+SplashContainer
+Responsibilities:
+Full-screen layout
+Background color
+Animation controller
+LogoAnimation
+Animation:
+Fade in
+Scale up
+Slight rotation
+Duration:
+800ms - 1200ms
+Splash Logic
+On application launch:
+Load stored token
+Check authentication state
+Load application configuration
+Navigate user
+Flow:
+App Start
+↓
+Read Local Storage
+↓
+Token Exists?
+YES
+|
+Validate Token
+|
+Open Main App
+NO
+|
+Open Onboarding
+10. Onboarding Screens
+Purpose
+Explain Delix value before account creation.
+Screen Count
+Recommended:
+3 screens
+Onboarding Screen 1
+Title
+Find Services Easily
+Description:
+Discover trusted providers near you.
+Visual:
+Service marketplace illustration
+Onboarding Screen 2
+Title
+Order With Confidence
+Description:
+Track your requests from start to finish.
+Onboarding Screen 3
+Title
+Fast And Reliable Delivery
+Description:
+Get your services completed quickly.
+Components
+OnboardingCarousel
+Contains:
+Image
+Title
+Description
+Pagination dots
+PaginationIndicator
+States:
+Active:
+Primary Color
+Inactive:
+Gray
+User Actions
+Buttons:
+First screens:
+Skip
+Next
+Last screen:
+Get Started
+Animation Requirements
+Page transition:
+Horizontal slide
+Duration:
+300ms
+Image animation:
+Fade + Scale
+11. Authentication Foundation
+Authentication Methods
+Delix supports:
+Phone number authentication
+OTP verification
+No password-based login.
+Login Screen
+Structure:
+-----------------------------
+Welcome Back
+Enter your phone number
++ Country Code
+[ Phone Number Input ]
+Continue
+-----------------------------
+Components
+PhoneInput
+Features:
+Country selector
+Formatting
+Validation
+Validation:
+Required:
+Phone number cannot be empty
+Invalid:
+Enter a valid phone number
+OTP Verification Screen
+Structure:
+Verify Your Number
+Code sent to:
++251XXXXXXXXX
+[ _ ][ _ ][ _ ][ _ ][ _ ][ _ ]
+Verify
+OTP Rules
+Length:
+6 digits
+Expiration:
+5 minutes
+Maximum attempts:
+5
+OTP States
+Waiting
+Show:
+Resend code in 00:45
+Expired
+Show:
+Code expired
+Resend Code
+Success
+Navigate:
+Profile Setup
+API Integration
+Request OTP
+Endpoint:
+POST /auth/send-otp
+Request:
+{
+"phone":"+251900000000"
+}
+Response:
+{
+"success":true,
+"message":"OTP sent"
+}
+Verify OTP
+Endpoint:
+POST /auth/verify-otp
+Request:
+{
+"phone":"+251900000000",
+"code":"123456"
+}
+Response:
+{
+"token":"jwt_token",
+"user":{}
+}
+End of Part 1
+Next Part:
+DELIX USER APP IMPLEMENTATION GUIDE — PART 2
+Will cover:
+Profile setup flow
+Home screen complete specification
+Service discovery
+Search
+Categories
+Provider cards
+Location handling
+Components and API structure
+DELIX USER APP IMPLEMENTATION GUIDE
+Version 1.0 — User Mobile Application Build Specification
+1. Introduction
+The Delix User App is the customer-facing mobile application that allows users to discover services, place orders, track deliveries, communicate with providers, manage payments, and review completed services.
+This document defines the complete implementation requirements for the mobile application, including:
+Screen structures
+UI components
+State management
+API integration
+Validation rules
+Loading states
+Error handling
+Animations
+User interactions
+Navigation behavior
+Responsive design requirements
+The objective is to provide a production-ready specification that developers can directly follow during implementation.
+2. User App Goals
+The Delix User App must provide:
+Core User Experience
+Users should be able to:
+Create an account
+Authenticate securely
+Manage their profile
+Browse available services
+Search and filter providers
+View provider details
+Request a service
+Configure order details
+Make payments
+Track order progress
+Receive notifications
+Communicate with providers
+Rate completed services
+View order history
+3. Application Architecture
+Frontend Stack
+Recommended implementation:
+Mobile Framework
+React Native + Expo
+Purpose:
+Cross-platform Android/iOS support
+Faster development cycle
+Native performance
+Easy deployment
+Programming Language
+TypeScript
+Requirements:
+Strict typing enabled
+Shared interfaces
+API response typing
+Component prop validation
+UI Layer
+Recommended:
+React Native components
+NativeWind / Tailwind CSS
+Custom reusable design system
+State Management
+Application state:
+Zustand
+Used for:
+Authentication state
+User profile
+Cart/order state
+App preferences
+Notifications
+Server state:
+TanStack Query
+Used for:
+API fetching
+Cache management
+Background refresh
+Mutation handling
+4. Delix Design System
+Brand Identity
+The application must maintain a modern delivery/service marketplace appearance.
+Design principles:
+Simple
+Fast
+Trustworthy
+Premium
+Accessible
+5. Color System
+Primary Color
+Delix Primary:
+#0B3C8A
+Usage:
+Headers
+Primary buttons
+Active navigation
+Brand elements
+Secondary Color
+Delix Accent:
+#A3E635
+Usage:
+Success states
+Highlights
+Promotions
+Action indicators
+Neutral Colors
+Background:
+#FFFFFF
+Surface:
+#F8FAFC
+Border:
+#E2E8F0
+Text Primary:
+#111827
+Text Secondary:
+#64748B
+Error:
+#EF4444
+Success:
+#22C55E
+6. Typography System
+Recommended font:
+Inter / Noto Sans
+Font weights:
+Heading
+Bold
+Examples:
+Screen titles
+Section headers
+Body
+Regular
+Examples:
+Description
+Information text
+Button
+Semi-bold
+Examples:
+Submit actions
+Navigation actions
+7. Application Navigation
+The User App uses bottom tab navigation.
+Main tabs:
+Home
+Explore
+Orders
+Messages
+Profile
+Navigation Structure
+App
+│
+├── Splash
+│
+├── Onboarding
+│
+├── Authentication
+│
+│
+└── Main App
+│
+├── Home
+│
+├── Explore
+│
+├── Orders
+│
+├── Messages
+│
+└── Profile
+8. Global Application Behavior
+Safe Area
+Every screen must support:
+Android status bar
+iOS notch
+Bottom gesture area
+Implementation:
+SafeAreaView
+or
+react-native-safe-area-context
+Loading Behavior
+Every API screen requires:
+Initial Loading
+Display:
+Skeleton UI
+Shimmer animation
+Avoid:
+Empty white screen
+Frozen interface
+Error Handling
+Every API request must support:
+States:
+Loading
+Success
+Empty
+Error
+Retry
+Example:
+Unable to load services.
+Try Again
+9. Splash Screen Implementation
+Purpose
+The splash screen introduces the Delix brand while the application initializes.
+Splash UI
+Structure:
+--------------------------------
+DELIX LOGO
+Deliver Faster
+Live Better
+Loading indicator
+--------------------------------
+Components
+SplashContainer
+Responsibilities:
+Full-screen layout
+Background color
+Animation controller
+LogoAnimation
+Animation:
+Fade in
+Scale up
+Slight rotation
+Duration:
+800ms - 1200ms
+Splash Logic
+On application launch:
+Load stored token
+Check authentication state
+Load application configuration
+Navigate user
+Flow:
+App Start
+↓
+Read Local Storage
+↓
+Token Exists?
+YES
+|
+Validate Token
+|
+Open Main App
+NO
+|
+Open Onboarding
+10. Onboarding Screens
+Purpose
+Explain Delix value before account creation.
+Screen Count
+Recommended:
+3 screens
+Onboarding Screen 1
+Title
+Find Services Easily
+Description:
+Discover trusted providers near you.
+Visual:
+Service marketplace illustration
+Onboarding Screen 2
+Title
+Order With Confidence
+Description:
+Track your requests from start to finish.
+Onboarding Screen 3
+Title
+Fast And Reliable Delivery
+Description:
+Get your services completed quickly.
+Components
+OnboardingCarousel
+Contains:
+Image
+Title
+Description
+Pagination dots
+PaginationIndicator
+States:
+Active:
+Primary Color
+Inactive:
+Gray
+User Actions
+Buttons:
+First screens:
+Skip
+Next
+Last screen:
+Get Started
+Animation Requirements
+Page transition:
+Horizontal slide
+Duration:
+300ms
+Image animation:
+Fade + Scale
+11. Authentication Foundation
+Authentication Methods
+Delix supports:
+Phone number authentication
+OTP verification
+No password-based login.
+Login Screen
+Structure:
+-----------------------------
+Welcome Back
+Enter your phone number
++ Country Code
+[ Phone Number Input ]
+Continue
+-----------------------------
+Components
+PhoneInput
+Features:
+Country selector
+Formatting
+Validation
+Validation:
+Required:
+Phone number cannot be empty
+Invalid:
+Enter a valid phone number
+OTP Verification Screen
+Structure:
+Verify Your Number
+Code sent to:
++251XXXXXXXXX
+[ _ ][ _ ][ _ ][ _ ][ _ ][ _ ]
+Verify
+OTP Rules
+Length:
+6 digits
+Expiration:
+5 minutes
+Maximum attempts:
+5
+OTP States
+Waiting
+Show:
+Resend code in 00:45
+Expired
+Show:
+Code expired
+Resend Code
+Success
+Navigate:
+Profile Setup
+API Integration
+Request OTP
+Endpoint:
+POST /auth/send-otp
+Request:
+{
+"phone":"+251900000000"
+}
+Response:
+{
+"success":true,
+"message":"OTP sent"
+}
+Verify OTP
+Endpoint:
+POST /auth/verify-otp
+Request:
+{
+"phone":"+251900000000",
+"code":"123456"
+}
+Response:
+{
+"token":"jwt_token",
+"user":{}
+}
+End of Part 1
+Next Part:
+DELIX USER APP IMPLEMENTATION GUIDE — PART 2
+Will cover:
+Profile setup flow
+Home screen complete specification
+Service discovery
+Search
+Categories
+Provider cards
+Location handling
+Components and API structure
+DELIX USER APP IMPLEMENTATION GUIDE
+PART 3 — Discovery, Service Selection & Booking Flow
+21. Explore Screen
+The Explore screen allows users to discover all available services and providers.
+Primary goals:
+Browse categories
+Search services
+Filter results
+Compare providers
+Start booking process
+Explore Screen Structure
+------------------------------------------------
+Header
+Explore Services
+Search Bar
+Category Filters
+Filter & Sort
+Service Results
+Provider Results
+------------------------------------------------
+Bottom Navigation
+------------------------------------------------
+22. Explore Header Component
+Title
+Display:
+Explore
+Secondary text:
+Find the right service for you
+Search Integration
+The Explore search bar supports:
+Service name
+Provider name
+Category
+Location
+Examples:
+Cleaning
+Plumber
+Electrician
+Moving
+23. Advanced Search System
+Search Screen
+When user taps search:
+Navigate:
+Home
+|
+Search Screen
+Search Screen Layout
+--------------------------------
+← Search
+[ Search services ]
+Recent Searches
+Popular Searches
+Suggested Services
+--------------------------------
+Search Input Behavior
+Features:
+Auto focus keyboard
+Clear button
+Search history
+Suggestions
+Search States
+Initial State
+Display:
+Recent Searches
+Cleaning
+Car Wash
+Repair
+Typing State
+Display:
+Searching...
+Cleaning Service
+Office Cleaning
+Deep Cleaning
+Result State
+Display:
+Services
+Providers
+Empty Result
+Display:
+No results found
+Try different keywords
+Search Store
+State:
+searchStore
+Data:
+{
+query:string;
+history:string[];
+results:[];
+loading:boolean;
+}
+Search API
+Endpoint:
+GET /search/global
+Request:
+?q=cleaning
+Response:
+{
+"services":[],
+"providers":[]
+}
+24. Service Listing Screen
+After selecting a category:
+Example:
+Cleaning
+Navigate:
+Category
+|
+Service Listing
+Layout
+--------------------------------
+Cleaning Services
+Filter     Sort
+Service Card
+Service Card
+Service Card
+--------------------------------
+Filter Options
+Users can filter by:
+Price
+Low - High
+High - Low
+Rating
+4+
+3+
+Distance
+Nearby
+Availability
+Available Now
+Sort Options
+Recommended
+Highest Rating
+Lowest Price
+Nearest
+Service List API
+Endpoint:
+GET /services
+Parameters:
+categoryId
+location
+sort
+filter
+Example:
+/services?category=cleaning&sort=rating
+25. Service Details Screen
+This screen provides complete information before booking.
+Layout
+------------------------------------------------
+Service Image
+Service Name
+Rating ⭐
+Description
+Pricing
+Included Services
+Provider Information
+Reviews
+Book Now Button
+------------------------------------------------
+Components
+ServiceHeroImage
+Features:
+Full width image
+Image preview
+Loading placeholder
+ServiceInformation
+Contains:
+Name
+Category
+Description
+Rating
+Completed orders
+Pricing Component
+Display:
+Example:
+Starting from
+350 ETB
+Included Services
+Example:
+✓ Equipment included
+✓ Professional worker
+✓ Quality guarantee
+Provider Preview
+Display:
+Profile photo
+Name
+Rating
+Jobs completed
+View Profile
+Reviews Component
+Display:
+★★★★★
+"Excellent service"
+Customer name
+Service Detail API
+Endpoint:
+GET /services/:id
+Response:
+{
+"id":"123",
+"name":"Home Cleaning",
+"description":"",
+"price":350,
+"provider":{}
+}
+26. Provider Details Screen
+Users can view provider information before ordering.
+Layout
+--------------------------------
+Profile Image
+Provider Name
+Rating
+About Provider
+Services
+Portfolio
+Reviews
+Book Service
+--------------------------------
+Provider Profile Data
+Required:
+Name
+Profile image
+Bio
+Experience
+Rating
+Completed jobs
+Location
+Services offered
+Provider Availability
+Display:
+Available:
+● Available Now
+Unavailable:
+○ Busy
+Provider Portfolio
+Supports:
+Images
+Previous work
+Certificates
+Provider API
+Endpoint:
+GET /providers/:id
+27. Booking Flow
+The booking process converts a service selection into an order.
+Booking Steps
+Service Selected
+↓
+Choose Date & Time
+↓
+Add Requirements
+↓
+Confirm Address
+↓
+Review Order
+↓
+Payment
+↓
+Order Created
+28. Booking Screen 1 — Schedule Selection
+Layout
+--------------------------------
+Select Date
+Calendar
+Select Time
+Continue
+--------------------------------
+Date Validation
+Rules:
+Cannot select:
+Past dates
+Minimum booking time:
+Current time + provider availability
+Time Selection
+Display:
+Available slots:
+09:00 AM
+11:00 AM
+02:00 PM
+04:00 PM
+Unavailable:
+Disabled
+29. Booking Screen 2 — Requirements
+Users can add details.
+Fields
+Description
+Example:
+Please clean my apartment
+Limit:
+500 characters
+Image Upload
+Purpose:
+Allow users to attach:
+Problem images
+Location images
+Instructions
+Upload Rules
+Maximum:
+5 images
+Allowed:
+JPG
+PNG
+WEBP
+Maximum size:
+5MB/image
+30. Booking Screen 3 — Address
+Address Component
+Fields:
+Saved Address
+Street
+Building
+Apartment
+Additional Notes
+Address Validation
+Required:
+Street
+City
+Phone Number
+Location Picker
+Features:
+Map selection
+Current location
+Saved locations
+31. Booking Summary Screen
+Before payment, show complete order details.
+Layout
+--------------------------------
+Service
+Provider
+Date & Time
+Location
+Price
+Service Fee
+Total
+Confirm Booking
+--------------------------------
+Price Calculation
+Formula:
+Total =
+Service Price
++
+Platform Fee
++
+Additional Charges
+Example
+Cleaning        350 ETB
+Platform Fee     20 ETB
+----------------------
+Total            370 ETB
+32. Booking Validation Before Submit
+Required checks:
+✓ Service selected
+✓ Provider available
+✓ Date selected
+✓ Time selected
+✓ Address completed
+✓ Payment method available
+Error Messages
+Example:
+Please select a service time
+Provider unavailable at this time
+33. Order Creation API
+Endpoint:
+POST /orders
+Request:
+{
+"serviceId":"123",
+"providerId":"456",
+"date":"2026-08-03",
+"time":"10:00",
+"address":{
+"lat":9.03,
+"lng":38.74
+},
+"notes":"Apartment cleaning"
+}
+Response:
+{
+"orderId":"789",
+"status":"pending"
+}
+34. Payment Preparation
+Payment is handled after order confirmation.
+Supported providers:
+Telebirr
+Chapa
+Bank Transfer
+Card Payment
+Payment Flow
+Order Created
+↓
+Payment Screen
+↓
+Select Method
+↓
+Payment Gateway
+↓
+Payment Verification
+↓
+Order Confirmed
+Payment State
+Pending
+Processing
+Successful
+Failed
+Cancelled
+End of Part 3
+Next Part:
+DELIX USER APP IMPLEMENTATION GUIDE — PART 4
+Will cover:
+Payment screens
+Order tracking system
+Live delivery tracking
+Chat/messaging
+Notifications
+Ratings & reviews
+Order history
+Profile management
+DELIX USER APP IMPLEMENTATION GUIDE
+PART 4 — Order Lifecycle, Communication & User Management
+35. Payment Screens
+The payment system completes the booking process after the user confirms an order.
+Payment objectives:
+Provide secure payment selection
+Show clear pricing
+Handle payment failures
+Confirm successful transactions
+Payment Screen Structure
+---------------------------------
+Complete Payment
+Service Summary
+Service Amount
+Platform Fee
+Discount
+Total Amount
+Payment Methods
+Pay Now
+---------------------------------
+Payment Summary Component
+Displays:
+Service Name
+Provider
+Booking Date
+Booking Location
+Amount
+Payment Method Component
+Available methods:
+Telebirr
+Chapa
+Card
+Bank Transfer
+Payment Method Card
+Structure:
+---------------------
+Logo
+Payment Name
+Radio Selection
+---------------------
+Payment Validation
+Before payment:
+Required:
+✓ Payment method selected
+✓ Order information valid
+✓ User phone verified
+Payment API
+Create Payment Request
+Endpoint:
+POST /payments/create
+Request:
+{
+"orderId":"789",
+"method":"telebirr",
+"amount":370
+}
+Response:
+{
+"paymentUrl":"",
+"transactionId":"123"
+}
+Payment Processing Screen
+Purpose:
+Prevent user confusion while waiting for payment confirmation.
+UI
+--------------------------------
+Processing Payment
+Loading Animation
+Please complete your payment
+Do not close this screen
+--------------------------------
+Payment States
+Processing
+Animation:
+Spinner
+Progress indicator
+Successful
+Display:
+✓ Payment Successful
+Your order has been confirmed
+Action:
+View Order
+Failed
+Display:
+Payment Failed
+Please try again
+Actions:
+Retry Payment
+Change Method
+36. Order Tracking System
+The order tracking screen allows users to monitor service progress.
+Order Lifecycle
+Pending
+↓
+Accepted
+↓
+Provider Assigned
+↓
+Provider Arriving
+↓
+Service Started
+↓
+Completed
+↓
+Reviewed
+Order Tracking Screen
+Layout:
+--------------------------------
+Order Status
+Progress Timeline
+Provider Information
+Location
+Chat Button
+Cancel Order
+--------------------------------
+37. Order Status Timeline
+Component:
+OrderTimeline
+Displays:
+● Order Created
+│
+● Provider Accepted
+│
+● On The Way
+│
+● Service Started
+│
+● Completed
+Timeline States
+Completed step:
+Active color
+Current step:
+Animated indicator
+Upcoming:
+Disabled
+38. Provider Tracking
+For services requiring movement:
+Example:
+Delivery
+Pickup
+Home service
+Map Tracking Screen
+Features:
+Provider location
+User location
+Route line
+Estimated arrival time
+Map Components
+ProviderMarker
+Shows:
+Provider image
+Vehicle icon
+Current location
+RouteDisplay
+Shows:
+Provider → Customer
+Location Updates
+Technology:
+Recommended:
+WebSocket
+Firebase realtime
+Socket.IO
+Tracking Event Example
+{
+"providerId":"123",
+"latitude":9.031,
+"longitude":38.742,
+"status":"arriving"
+}
+39. Order Actions
+Cancel Order
+Available before:
+Service Started
+Cancellation Dialog
+Cancel Order?
+Why are you cancelling?
+[Reason]
+Cancel Order
+Keep Order
+Cancellation Reasons
+Options:
+Changed my mind
+Found another provider
+Too expensive
+Other
+Cancel API
+Endpoint:
+PATCH /orders/:id/cancel
+40. Chat / Messaging System
+Users can communicate with providers.
+Chat Screen
+Layout:
+--------------------------------
+Provider Name
+Messages
+----------------
+Type message...
+Send
+--------------------------------
+Message Types
+Supported:
+Text
+Hello, I am arriving soon
+Image
+For:
+Location photos
+Service details
+System Messages
+Examples:
+Provider accepted your order
+Chat Components
+MessageBubble
+States:
+User:
+Right aligned
+Provider:
+Left aligned
+Typing Indicator
+Display:
+Provider is typing...
+Chat API
+Send Message
+Endpoint:
+POST /messages
+Request:
+{
+"orderId":"789",
+"text":"Hello"
+}
+41. Notification System
+Notifications inform users about important events.
+Notification Types
+Order Updates
+Examples:
+Your order was accepted
+Payment
+Examples:
+Payment completed successfully
+Promotions
+Examples:
+20% discount available
+Notification Screen
+Layout:
+--------------------------------
+Notifications
+Today
+Order accepted
+Yesterday
+Payment completed
+--------------------------------
+Notification Card
+Contains:
+Icon
+Title
+Description
+Time
+Read status
+Notification States
+Unread:
+Bold text
+Read:
+Normal text
+Push Notification
+Technology:
+Recommended:
+Expo Notifications
+Firebase Cloud Messaging
+42. Order History Screen
+Users can view previous and current orders.
+Layout
+--------------------------------
+Active Orders
+Completed Orders
+Cancelled Orders
+--------------------------------
+Order Card
+Structure:
+---------------------
+Service Image
+Service Name
+Provider
+Date
+Status
+View Details
+---------------------
+Filtering
+Options:
+All
+Completed
+Cancelled
+Pending
+Order History API
+Endpoint:
+GET /orders/history
+44. Profile Management
+The Profile section manages user account settings.
+Profile Screen
+Layout:
+--------------------------------
+Profile Image
+User Name
+Phone Number
+Edit Profile
+My Addresses
+Payment Methods
+Settings
+Logout
+--------------------------------
+Profile Menu Items
+Personal Information
+Allows:
+Change name
+Update photo
+Update location
+Saved Addresses
+Manage:
+Home
+Work
+Other
+Payment Methods
+Manage:
+Saved payment options
+Transaction history
+Settings
+Contains:
+Language
+Notifications
+Privacy
+About
+Logout Flow
+Confirmation:
+Logout?
+Cancel
+Logout
+Logout API
+Endpoint:
+POST /auth/logout
+End of Part 4
+Next Part:
+DELIX USER APP IMPLEMENTATION GUIDE — PART 5
+Will cover:
+Complete component architecture
+Folder structure
+State management architecture
+API service layer
+Authentication implementation
+Error handling system
+Animation system
+Performance optimization
+Testing requirements
+DELIX USER APP IMPLEMENTATION GUIDE
+PART 5 — Application Architecture & Engineering Specification
+45. Frontend Project Architecture
+The Delix User App must follow a scalable architecture that supports:
+Feature expansion
+Team development
+Easy maintenance
+Reusable components
+Clear separation of responsibilities
+Recommended Folder Structure
+delix-user-app/
+│
+├── app/
+│   ├── (auth)/
+│   │   ├── splash.tsx
+│   │   ├── onboarding.tsx
+│   │   ├── login.tsx
+│   │   ├── verify-otp.tsx
+│   │   └── profile-setup.tsx
+│   │
+│   ├── (tabs)/
+│   │   ├── home.tsx
+│   │   ├── explore.tsx
+│   │   ├── orders.tsx
+│   │   ├── messages.tsx
+│   │   └── profile.tsx
+│   │
+│   ├── service/
+│   │   └── [id].tsx
+│   │
+│   ├── provider/
+│   │   └── [id].tsx
+│   │
+│   ├── booking/
+│   │   ├── schedule.tsx
+│   │   ├── requirements.tsx
+│   │   ├── address.tsx
+│   │   └── summary.tsx
+│   │
+│   ├── payment/
+│   │   └── checkout.tsx
+│   │
+│   ├── tracking/
+│   │   └── [orderId].tsx
+│   │
+│   └── chat/
+│       └── [conversationId].tsx
+│
+├── components/
+│
+├── features/
+│
+├── hooks/
+│
+├── store/
+│
+├── services/
+│
+├── api/
+│
+├── constants/
+│
+├── utils/
+│
+├── types/
+│
+├── assets/
+│
+└── config/
+46. Component Architecture
+Components must be reusable and isolated.
+Component Categories
+1. Common Components
+Used everywhere.
+Examples:
+Button
+Input
+Modal
+Card
+Loader
+EmptyState
+ErrorView
+2. Layout Components
+Control screen structure.
+Examples:
+ScreenContainer
+Header
+BottomSheet
+SafeAreaWrapper
+3. Business Components
+Specific to Delix functionality.
+Examples:
+ServiceCard
+ProviderCard
+OrderCard
+PaymentCard
+CategoryCard
+MessageBubble
+4. Feature Components
+Grouped by feature.
+Example:
+features/
+home/
+├── BannerCarousel
+├── NearbyProviders
+└── PopularServices
+booking/
+├── DatePicker
+├── AddressSelector
+└── OrderSummary
+47. Component Naming Rules
+Use:
+PascalCase
+Examples:
+Correct:
+ServiceCard.tsx
+OrderTimeline.tsx
+Incorrect:
+service-card.tsx
+order_card.tsx
+48. State Management Architecture
+Delix uses two state layers.
+Client State
+Technology:
+Zustand
+Used for:
+Authentication
+User preferences
+Temporary booking data
+UI state
+Server State
+Technology:
+TanStack Query
+Used for:
+Services
+Providers
+Orders
+Payments
+Messages
+Store Structure
+store/
+authStore.ts
+userStore.ts
+bookingStore.ts
+appStore.ts
+notificationStore.ts
+49. Authentication Store
+File:
+store/authStore.ts
+State
+{
+user:null,
+token:null,
+isAuthenticated:false,
+loading:false
+}
+Actions
+login()
+logout()
+setUser()
+refreshToken()
+Authentication Flow
+Application Start
+↓
+Load Token
+↓
+Validate Token
+↓
+Authenticated?
+YES
+|
+Open App
+NO
+|
+Login Screen
+50. Secure Storage
+Sensitive information must not use normal storage.
+Use:
+expo-secure-store
+Store:
+JWT Token
+Refresh Token
+User ID
+Storage Example
+saveToken(token)
+getToken()
+removeToken()
+51. API Service Architecture
+All API communication must be centralized.
+Folder
+api/
+├── client.ts
+├── auth.api.ts
+├── user.api.ts
+├── service.api.ts
+├── order.api.ts
+├── payment.api.ts
+├── message.api.ts
+API Client
+Responsible for:
+Base URL
+Headers
+Authentication
+Error handling
+Example Configuration
+{
+baseURL:
+"https://api.delix.com",
+timeout:
+10000
+}
+Request Flow
+Component
+↓
+React Query Hook
+↓
+API Function
+↓
+Axios Client
+↓
+Backend API
+52. React Query Structure
+Example:
+Services query:
+useServices()
+Query Responsibilities
+Handles:
+Loading
+Cache
+Refetch
+Error state
+Example Flow
+Open Explore Screen
+↓
+useServices()
+↓
+Check Cache
+↓
+Fetch API if needed
+↓
+Render Data
+53. Custom Hooks Architecture
+Folder:
+hooks/
+Authentication Hooks
+useAuth()
+Functions:
+login()
+logout()
+currentUser()
+Location Hook
+useLocation()
+Handles:
+Permission
+GPS
+Coordinates
+Booking Hook
+useBooking()
+Handles:
+Service selection
+Schedule
+Address
+Order creation
+54. Error Handling System
+Every feature must provide predictable errors.
+Error Categories
+Network Error
+Example:
+No internet connection
+Authentication Error
+Example:
+Session expired
+Action:
+Redirect to login.
+Validation Error
+Example:
+Phone number required
+Server Error
+Example:
+Something went wrong
+Global Error Handler
+Responsibilities:
+Capture API errors
+Display messages
+Log failures
+Retry requests
+Error UI Components
+ErrorScreen
+Full page failure.
+ErrorToast
+Small notification.
+Example:
+Payment failed
+RetryButton
+Used when:
+API timeout
+Network failure
+55. Animation System
+Animations improve user experience but must remain lightweight.
+Animation Library
+Recommended:
+React Native Reanimated
+Required Animations
+Screen Transition
+Duration:
+300ms
+Button Press
+Effect:
+Scale 0.96
+Card Appearance
+Effect:
+Fade + Slide Up
+Loading Skeleton
+Effect:
+Shimmer Animation
+56. Image Handling
+Images are heavily used.
+Requirements:
+Compression
+Lazy loading
+Cache support
+Placeholder states
+Image Component
+Create:
+OptimizedImage
+Features:
+Loading state
+Error fallback
+Cache
+Resize mode
+57. Performance Requirements
+Target:
+60 FPS
+Optimization Rules
+Lists
+Use:
+FlatList
+Avoid:
+ScrollView with many items
+Images
+Use:
+Optimized sizes
+Cached images
+API
+Use:
+Pagination
+Query caching
+Background refresh
+Rendering
+Avoid:
+Unnecessary state updates
+Large component rerenders
+58. Offline Handling
+The app should handle weak internet connections.
+Offline Features
+Support:
+Cached services
+Cached profile
+Previous orders
+Offline Message
+Display:
+You are offline.
+Some features may be unavailable.
+59. Testing Requirements
+Unit Testing
+Test:
+Utility functions
+Validation logic
+State actions
+Tool:
+Jest
+Component Testing
+Test:
+Buttons
+Forms
+Cards
+Navigation
+Tool:
+React Native Testing Library
+End-to-End Testing
+Test:
+Complete flows:
+Install App
+↓
+Login
+↓
+Browse Service
+↓
+Create Order
+↓
+Payment
+↓
+Track Order
+Tool:
+Detox
+DELIX USER APP IMPLEMENTATION GUIDE
+PART 6 — UI SYSTEM & REUSABLE COMPONENT SPECIFICATION
+60. Design System Architecture
+The Delix User App must use a centralized design system to maintain consistency across all screens.
+The design system controls:
+Colors
+Typography
+Spacing
+Components
+Animations
+Interaction behavior
+Design System Structure
+design-system/
+├── colors.ts
+├── typography.ts
+├── spacing.ts
+├── shadows.ts
+├── components/
+│   ├── Button
+│   ├── Input
+│   ├── Card
+│   ├── Modal
+│   └── Loader
+61. Spacing System
+All layouts must use predefined spacing values.
+Spacing Tokens
+{
+xs:4,
+sm:8,
+md:16,
+lg:24,
+xl:32,
+xxl:48
+}
+Usage Examples
+Small gap:
+4px - 8px
+Between components:
+16px - 24px
+Screen padding:
+16px
+Large sections:
+32px - 48px
+62. Screen Layout Component
+Every screen must use a common container.
+Component:
+ScreenContainer
+Responsibilities
+Handles:
+Safe area
+Background color
+Screen padding
+Keyboard behavior
+Scroll behavior
+Example Structure
+&lt;ScreenContainer&gt;
+&lt;Header /&gt;
+&lt;Content /&gt;
+&lt;/ScreenContainer&gt;
+63. Button System
+All buttons must use a reusable component.
+Component:
+DelixButton
+Button Types
+Primary Button
+Used for:
+Main actions
+Booking
+Payment
+Confirmation
+Example:
+[ Continue ]
+Style:
+Primary background
+White text
+Rounded corners
+Secondary Button
+Used for:
+Cancel
+Alternative actions
+Example:
+[ Cancel ]
+Style:
+Border
+Transparent background
+Text Button
+Used for:
+Links
+Small actions
+Example:
+Forgot password?
+Button States
+Every button supports:
+Default
+Normal state
+Pressed
+Animation:
+Scale: 0.96
+Loading
+Display:
+Spinner + Disabled
+Disabled
+Display:
+Reduced opacity
+No interaction
+Button Component Props
+{
+title:string;
+variant:
+"primary" |
+"secondary" |
+"text";
+loading:boolean;
+disabled:boolean;
+onPress:function;
+}
+64. Input System
+Component:
+DelixInput
+Supported Inputs
+Text Input
+Used for:
+Name
+Address
+Description
+Phone Input
+Used for:
+Authentication
+Features:
+Country code
+Formatting
+Validation
+Search Input
+Used for:
+Service search
+Provider search
+Features:
+Search icon
+Clear button
+Input Structure
+--------------------------------
+Label
+[ Input Field ]
+Error Message
+--------------------------------
+Input States
+Default
+Normal border
+Focused
+Primary color border
+Error
+Red border
+Message:
+Invalid input
+Disabled
+Non-editable
+Validation Behavior
+Validation happens:
+On Submit
+For:
+Forms
+Booking
+Profile
+While Typing
+For:
+Search
+OTP
+65. Card System
+Cards are used throughout the application.
+Component:
+DelixCard
+Card Types
+Service Card
+Contains:
+Image
+Name
+Price
+Rating
+Action
+Provider Card
+Contains:
+Avatar
+Name
+Distance
+Availability
+Order Card
+Contains:
+Service
+Status
+Date
+Action
+Card Rules
+Properties:
+Rounded corners
+White surface
+Shadow
+Internal padding
+66. Modal System
+Component:
+DelixModal
+Modal Usage
+Used for:
+Confirmations
+Warnings
+Selection
+Information
+Modal Structure
+----------------------
+Title
+Content
+Actions
+----------------------
+Modal Animation
+Opening:
+Fade + Scale
+Duration:
+250ms
+Examples
+Cancel Order Modal
+Cancel Order?
+Are you sure?
+Cancel     Confirm
+Logout Modal
+Logout?
+You will need to login again.
+Cancel     Logout
+67. Bottom Sheet System
+Component:
+DelixBottomSheet
+Usage
+Used for:
+Filters
+Sorting
+Selecting options
+Location picker
+Structure
+----------------------
+Sheet Title
+Options
+Actions
+----------------------
+Bottom Sheet Behavior
+Supports:
+Swipe down close
+Drag handle
+Back button close
+Examples
+Filter Sheet
+Options:
+Price
+Rating
+Distance
+Availability
+Payment Selection
+Options:
+Telebirr
+Chapa
+Card
+68. Loading State System
+Every asynchronous operation requires loading UI.
+Loading Components
+Full Screen Loader
+Used:
+App initialization
+Authentication check
+Skeleton Loader
+Used:
+Home loading
+Service lists
+Provider lists
+Button Loader
+Used:
+Form submission
+Payment
+Skeleton Examples
+Service Card:
+[ IMAGE ]
+████████
+████
+████
+69. Empty State System
+Empty states must guide users.
+Component:
+EmptyState
+Structure
+---------------------
+Illustration
+Title
+Description
+Action Button
+---------------------
+Empty State Examples
+No Orders
+Title:
+No orders yet
+Description:
+Your completed services will appear here
+Action:
+Explore Services
+No Search Results
+Title:
+No services found
+Description:
+Try another search
+No Messages
+Title:
+No conversations
+70. Error State System
+Component:
+ErrorState
+Error Layout
+---------------------
+Error Illustration
+Something went wrong
+Try Again
+---------------------
+Error Types
+Network Error
+Message:
+Check your internet connection
+Server Error
+Message:
+Unable to complete request
+Permission Error
+Message:
+Permission required
+71. Responsive Layout System
+The app must support:
+Small Android devices
+Large Android devices
+iPhone sizes
+Tablets
+Responsive Rules
+Never use fixed screen sizes.
+Avoid:
+width:400
+Use:
+Dimensions
+useWindowDimensions()
+flex layouts
+72. Screen Padding Rules
+Default:
+Horizontal padding: 16px
+Large screens:
+24px
+73. Border Radius System
+Tokens:
+{
+small:8,
+medium:12,
+large:20,
+circle:999
+}
+Usage
+Buttons:
+12px
+Cards:
+16px
+Avatars:
+circle
+74. Shadow System
+Used for:
+Cards
+Floating buttons
+Bottom sheets
+Shadow Levels
+Small:
+Cards
+Medium:
+Floating actions
+Large:
+Modal
+75. Accessibility Requirements
+The app must support:
+Screen readers
+Large text
+Color contrast
+Touch targets
+Touch Target
+Minimum:
+44px x 44px
+Text
+Never rely only on color.
+Example:
+Bad:
+Red means failed
+Good:
+❌ Payment Failed
+DELIX USER APP IMPLEMENTATION GUIDE
+PART 7 — Complete Screen Implementation Specification
+76. Screen Implementation Overview
+This section defines the final UI implementation requirements for every major user-facing screen.
+Each screen specification includes:
+Layout structure
+Components
+User interactions
+Loading behavior
+Error handling
+Navigation behavior
+API requirements
+77. Splash Screen Complete Specification
+Purpose
+Initialize the application and prepare the user session.
+Screen Structure
+---------------------------------
+DELIX LOGO
+Deliver Faster
+Live Better
+Loading Indicator
+---------------------------------
+Components
+SplashLogo
+Responsibilities:
+Display brand logo
+Handle entrance animation
+Animation:
+Fade In
+Scale 0.8 → 1.0
+Duration: 1000ms
+SplashLoader
+States:
+Initializing
+Checking account
+Loading application
+Logic Flow
+Application Started
+↓
+Load Local Configuration
+↓
+Check Authentication Token
+↓
+Validate Session
+↓
+Load User Data
+↓
+Navigate
+Navigation Rules
+Authenticated user:
+Splash
+↓
+Home
+New user:
+Splash
+↓
+Onboarding
+78. Onboarding Complete UI
+Screen Layout
+---------------------------------
+Illustration
+Title
+Description
+● ○ ○
+Skip              Next
+---------------------------------
+User Actions
+Skip:
+Navigate Login
+Next:
+Next Slide
+Get Started:
+Login Screen
+79. Login Screen
+Layout
+---------------------------------
+Welcome to Delix
+Phone Number
++251 | __________
+Continue
+---------------------------------
+Components
+PhoneNumberInput
+Features:
+Country selector
+Formatting
+Validation
+Validation
+Required:
+Phone number required
+Invalid:
+Enter a valid phone number
+Continue Button Behavior
+Loading:
+Sending OTP...
+Success:
+Navigate:
+OTP Verification
+80. OTP Verification Screen
+Layout
+---------------------------------
+Verify Your Number
+Code sent to
++251900000000
+[ _ ][ _ ][ _ ][ _ ][ _ ][ _ ]
+Verify
+Resend Code
+---------------------------------
+OTP Input Rules
+Length:
+6 digits
+Auto behavior:
+Auto focus next box
+Auto submit after completion
+Error Cases
+Wrong code:
+Incorrect verification code
+Expired:
+Code expired
+Request new code
+81. Home Screen Detailed Specification
+The Home screen is the main marketplace experience.
+Complete Layout
+------------------------------------------------
+Location Header
+Search
+Promotional Banner
+Categories
+Popular Services
+Nearby Providers
+Active Orders
+------------------------------------------------
+Bottom Navigation
+------------------------------------------------
+Home Header
+Contains:
+Location
+Display:
+Delivering to
+Addis Ababa
+Tap:
+Open location selector.
+Notification
+Contains:
+Bell icon
+Unread badge
+Search Section
+Component:
+HomeSearchBar
+Behavior:
+Tap:
+Open Search Screen
+Banner Carousel
+Features:
+Auto rotation
+Swipe gesture
+Pagination
+Configuration:
+Interval: 5 seconds
+Categories Section
+Display:
+Horizontal list.
+Example:
+Cleaning
+Repair
+Delivery
+Beauty
+Moving
+Popular Services
+Card:
+--------------------
+Image
+Service Name
+Price
+Rating
+Book
+--------------------
+Nearby Providers
+Card:
+--------------------
+Avatar
+Provider Name
+Distance
+Availability
+View
+--------------------
+Active Order Widget
+Only visible when user has an active order.
+Example:
+Your order
+Provider arriving
+Track Order
+82. Explore Screen Detailed Specification
+Purpose:
+Advanced service discovery.
+Layout
+---------------------------------
+Explore
+Search
+Categories
+Filters
+Service Results
+---------------------------------
+Filter Button
+Opens:
+Bottom Sheet
+Options:
+Price
+Distance
+Availability
+Sort Button
+Options:
+Recommended
+Nearest
+Lowest Price
+Service Result Card
+Contains:
+Image
+Name
+Provider
+Price
+Action
+83. Service Details Screen
+Layout
+---------------------------------
+Large Image
+Service Name
+Description
+Included Services
+Provider
+Price
+Book Now
+---------------------------------
+Book Now Action
+Navigate:
+Booking Schedule
+84. Booking Screens
+The booking process uses a multi-step flow.
+Booking Navigation
+Schedule
+↓
+Requirements
+↓
+Address
+↓
+Summary
+↓
+Payment
+Schedule Screen
+Components:
+Calendar
+Time selector
+Validation
+Cannot continue without:
+Date
+Time
+Requirements Screen
+Fields:
+Description:
+Maximum 500 characters
+Images:
+Maximum 5 images
+Address Screen
+Components:
+Saved address
+Map picker
+Manual entry
+Summary Screen
+Displays:
+Service
+Provider
+Date
+Location
+Price
+Total
+Confirm Button
+Action:
+Create order.
+85. Payment Screen Detailed Specification
+Layout
+---------------------------------
+Payment
+Order Summary
+Choose Payment Method
+Telebirr
+CBE
+Cash
+Pay Now
+---------------------------------
+Payment States
+Processing
+Processing Payment...
+Success
+Payment Successful
+Order Confirmed
+Failed
+Payment Failed
+Retry
+86. Order Tracking Screen
+Layout
+---------------------------------
+Order Status
+Timeline
+Provider Card
+Map
+Chat
+---------------------------------
+Status Timeline
+Steps:
+Created
+Accepted
+Arriving
+Started
+Completed
+Provider Card
+Shows:
+Photo
+Name
+Contact
+Status
+Map Area
+Features:
+Provider location
+User location
+Route
+87. Orders Screen
+Layout
+---------------------------------
+Active Orders
+Past Orders
+Cancelled Orders
+---------------------------------
+Order Card
+Contains:
+Service
+Date
+Status
+View Details
+88. Messages Screen
+Layout
+---------------------------------
+Conversations
+Provider Name
+Last Message
+Time
+---------------------------------
+Chat Screen
+Contains:
+Message list
+Input box
+Send button
+Message States
+Sending:
+Sending...
+Delivered:
+✓
+Failed:
+Retry
+89. Profile Screen
+Layout
+---------------------------------
+Profile Image
+Name
+Phone
+Edit Profile
+Addresses
+Payments
+Settings
+Logout
+---------------------------------
+Profile Actions
+Edit Profile
+Allows:
+Change name
+Change image
+Change location
+Addresses
+Manage:
+Add address
+Edit address
+Delete address
+Settings
+Includes:
+Language
+Notifications
+About
+90. Final Implementation Checklist
+Before production release, verify:
+Authentication
+✓ OTP login works✓ Secure token storage✓ Session restoration✓ Logout functionality
+Home
+✓ Services load correctly✓ Search works✓ Categories work✓ Provider discovery works
+Booking
+✓ Schedule selection✓ Address selection✓ Order creation✓ Validation rules
+Payment
+✓ Payment methods✓ Success handling✓ Failure handling
+Orders
+✓ Status tracking✓ History✓ Cancellation rules
+Communication
+✓ Messaging✓ Notifications
+UI Quality
+✓ Responsive layout✓ Safe area support✓ Loading states✓ Error states✓ Empty states
+Performance
+✓ Optimized images✓ Cached requests✓ Smooth animations✓ 60 FPS scrolling
+Security
+✓ Secure storage✓ API authentication✓ Input validation✓ Protected user data
+DELIX USER APP IMPLEMENTATION GUIDE COMPLETE
+Version 1.0
+This specification is ready to be used as the implementation blueprint for the Delix User Mobile Application.

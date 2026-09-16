@@ -6,6 +6,13 @@ export interface RequestOtpResponse {
   message: string;
   phone: string;
   devOtp?: string;
+  isProfileComplete?: boolean;
+  token?: string;
+  user?: {
+    phone: string;
+    name: string;
+    role: string;
+  };
 }
 
 export interface VerifyOtpResponse {

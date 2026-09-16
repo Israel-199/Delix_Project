@@ -16,7 +16,7 @@ import getSocket, {
   emitDriverOffline,
   joinOrderRoom,
 } from '../services/socketService';
-import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import OSMMapWebView, { OSMMarker } from '../components/map/OSMMapWebView';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -64,8 +64,6 @@ const DriverHomeScreen = () => {
   const DRIVER_ID = driverId || phone || 'driver-guest';
   const DRIVER_VEHICLE = vehicleType || 'MINI_TRUCK';
 
-  const mapRef = useRef<MapView>(null);
-  
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
   const [activeStep, setActiveStep] = useState<TripStep>('idle');
@@ -85,12 +83,6 @@ const DriverHomeScreen = () => {
       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const coord = { latitude: location.coords.latitude, longitude: location.coords.longitude };
       setDriverCoord(coord);
-
-      mapRef.current?.animateToRegion({
-        ...coord,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      }, 1000);
     })();
   }, []);
 
@@ -432,36 +424,34 @@ const DriverHomeScreen = () => {
     return null;
   };
 
+  const markers: OSMMarker[] = [];
+  if (driverCoord) {
+    markers.push({ id: 'driver', coordinate: driverCoord, type: 'driver', vehicleCategory: DRIVER_VEHICLE });
+  }
+  if (currentOrder?.pickupLat && activeStep !== 'in_transit') {
+    markers.push({ id: 'pickup', coordinate: { latitude: currentOrder.pickupLat, longitude: currentOrder.pickupLng }, type: 'user' });
+  }
+  if (currentOrder?.destinationLat && activeStep === 'in_transit') {
+    markers.push({ id: 'dest', coordinate: { latitude: currentOrder.destinationLat, longitude: currentOrder.destinationLng }, type: 'destination' });
+  }
+
   return (
     <View style={styles.container}>
       <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
       
-      <MapView
-        ref={mapRef}
+      <OSMMapWebView
         style={StyleSheet.absoluteFillObject}
-        provider={PROVIDER_GOOGLE}
-        showsUserLocation
-        showsMyLocationButton={false}
-        mapPadding={{ top: 0, right: 0, left: 0, bottom: 350 }}
         initialRegion={{
           latitude: 9.0205,
           longitude: 38.7469,
           latitudeDelta: 0.1,
           longitudeDelta: 0.1,
         }}
-      >
-        {driverCoord && <DriverMapMarker id="driver" type="driver" coordinate={driverCoord} vehicleType={DRIVER_VEHICLE} />}
-        {currentOrder?.pickupLat && activeStep !== 'in_transit' && (
-           <DriverMapMarker id="pickup" type="user" coordinate={{ latitude: currentOrder.pickupLat, longitude: currentOrder.pickupLng }} />
-        )}
-        {currentOrder?.destinationLat && activeStep === 'in_transit' && (
-           <DriverMapMarker id="dest" type="destination" coordinate={{ latitude: currentOrder.destinationLat, longitude: currentOrder.destinationLng }} />
-        )}
-        
-        {routeCoords.length > 0 && (
-          <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor={colors.primary} />
-        )}
-      </MapView>
+        focusCoordinate={driverCoord}
+        paddingBottom={350}
+        markers={markers}
+        routeCoordinates={routeCoords}
+      />
 
       <View style={styles.topHeader}>
         <TouchableOpacity style={styles.menuBtn} onPress={() => setDrawerOpen(true)}>

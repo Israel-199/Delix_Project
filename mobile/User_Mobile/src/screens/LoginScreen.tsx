@@ -34,6 +34,12 @@ const LoginScreen = ({ navigation }: Props) => {
     try {
       const fullPhone = countryCode + phone;
       const res = await sendOtp(fullPhone);
+      
+      if (res?.bypassedAuth) {
+        navigation.replace('CustomerHome');
+        return;
+      }
+      
       if (res?.devOtp) {
         Alert.alert('Test OTP Code', `Your verification code is: ${res.devOtp}\n\n(Use this since SMS is not active in dev phase)`);
       }

@@ -1,11 +1,10 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import MapView, { Polyline } from 'react-native-maps';
-import DriverMapMarker from './DriverMapMarker';
+import OSMMapWebView, { OSMMarker } from './map/OSMMapWebView';
 import { LatLng } from '../utils/mapUtils';
 
 export interface DriverTripMapProps {
-  mapRef: React.RefObject<MapView | null>;
+  mapRef?: any;
   pickupCoord: LatLng;
   destCoord: LatLng;
   driverCoord: LatLng;
@@ -39,42 +38,21 @@ export const DriverTripMap = React.memo(
 
     const destLabel = activeStep === 'in_transit' ? 'Dropoff' : undefined;
 
+    const markers: OSMMarker[] = [
+      { id: 'pickup', coordinate: pickupCoord, type: 'user' },
+      { id: 'destination', coordinate: destCoord, type: 'destination', label: destLabel, vehicleCategory: orderVehicle },
+      { id: 'driver', coordinate: driverCoord, type: 'driver', label: 'You', vehicleCategory: orderVehicle },
+    ];
+
     return (
       <View style={styles.mapBackground}>
-        <MapView
-          ref={mapRef}
+        <OSMMapWebView
           style={styles.map}
           initialRegion={initialRegion}
-          mapPadding={{ top: 60, right: 16, bottom: 260, left: 16 }}
-        >
-          {routeCoords.length > 1 ? (
-            <Polyline
-              coordinates={routeCoords}
-              strokeColor="#22C55E"
-              strokeWidth={5}
-              lineCap="round"
-              lineJoin="round"
-            />
-          ) : null}
-
-          <DriverMapMarker id="pickup" coordinate={pickupCoord} type="user" />
-
-          <DriverMapMarker
-            id="destination"
-            coordinate={destCoord}
-            type="destination"
-            vehicleType={orderVehicle}
-            label={destLabel}
-          />
-
-          <DriverMapMarker
-            id="driver"
-            coordinate={driverCoord}
-            type="driver"
-            vehicleType={orderVehicle}
-            label="You"
-          />
-        </MapView>
+          routeCoordinates={routeCoords}
+          markers={markers}
+          paddingBottom={260}
+        />
       </View>
     );
   },

@@ -1,7 +1,7 @@
 import { apiRequest } from './apiClient';
 
 export const requestDriverOtp = (phone: string) =>
-  apiRequest<{ success: boolean; devOtp?: string; phone: string }>('/auth/request-otp', {
+  apiRequest<{ success: boolean; devOtp?: string; phone: string; isProfileComplete?: boolean; token?: string; user?: any }>('/auth/request-otp', {
     method: 'POST',
     body: JSON.stringify({ phone }),
   });

@@ -39,11 +39,11 @@ export const DEV_API_PORT = DEV_PORT;
 
 export const API_BASE_URL = __DEV__
   ? `http://${DEV_API_HOST}:${DEV_PORT}/api`
-  : 'https://api.delix.app/api';
+  : 'https://delix-project-1.onrender.com/api';
 
 export const SOCKET_URL = __DEV__
   ? `http://${DEV_API_HOST}:${DEV_PORT}`
-  : 'https://api.delix.app';
+  : 'https://delix-project-1.onrender.com';
 
 if (__DEV__) {
   console.log('[Delix API]', API_BASE_URL);
