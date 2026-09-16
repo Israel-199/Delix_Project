@@ -55,6 +55,9 @@
     "extra": {
       "eas": {
         "projectId": "5dc68788-3dc7-4632-91e6-5b82ade20389"
+      },
+      "expo-navigation-bar": {
+        "style": "dark-content"
       }
     },
     "owner": "isru"
