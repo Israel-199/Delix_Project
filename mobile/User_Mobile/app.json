@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/images/icon.png",
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#FF5722"
@@ -17,6 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#FF5722"
       },
       "permissions": [
