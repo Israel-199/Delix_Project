@@ -254,4 +254,14 @@ server.listen(Number(PORT), HOST, async () => {
     await (0, pricingService_1.refreshPricingCache)();
     console.log(`🚀 Delix Backend Server & WebSockets running on http://${HOST}:${PORT}`.green);
     console.log(`   Health check: http://localhost:${PORT}/api/health`.cyan);
+    setInterval(async () => {
+        try {
+            const res = await fetch('https://delix-project-1.onrender.com/api/health');
+            if (res.ok)
+                console.log('Keep-alive ping successful'.dim);
+        }
+        catch {
+            console.log('Keep-alive ping failed'.yellow);
+        }
+    }, 14 * 60 * 1000);
 });

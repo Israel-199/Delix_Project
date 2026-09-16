@@ -24,10 +24,16 @@ export const updateProfile = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
     }
 
-    const token = authHeader.split(' ')[1];
+    const rawToken = (authHeader.split(' ')[1] || '').trim();
+    const token = rawToken.replace(/^["']|["']$/g, '');
     let decoded: any;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'delix_secret');
+      const primarySecret = process.env.JWT_SECRET || 'delix_secret';
+      try {
+        decoded = jwt.verify(token, primarySecret);
+      } catch {
+        decoded = jwt.verify(token, 'delix_secret');
+      }
     } catch (err) {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
@@ -77,10 +83,16 @@ export const getProfile = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
     }
 
-    const token = authHeader.split(' ')[1];
+    const rawToken = (authHeader.split(' ')[1] || '').trim();
+    const token = rawToken.replace(/^["']|["']$/g, '');
     let decoded: any;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'delix_secret');
+      const primarySecret = process.env.JWT_SECRET || 'delix_secret';
+      try {
+        decoded = jwt.verify(token, primarySecret);
+      } catch {
+        decoded = jwt.verify(token, 'delix_secret');
+      }
     } catch (err) {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }

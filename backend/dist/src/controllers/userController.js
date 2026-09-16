@@ -24,10 +24,17 @@ const updateProfile = async (req, res) => {
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
         }
-        const token = authHeader.split(' ')[1];
+        const rawToken = (authHeader.split(' ')[1] || '').trim();
+        const token = rawToken.replace(/^["']|["']$/g, '');
         let decoded;
         try {
-            decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'delix_secret');
+            const primarySecret = process.env.JWT_SECRET || 'delix_secret';
+            try {
+                decoded = jsonwebtoken_1.default.verify(token, primarySecret);
+            }
+            catch {
+                decoded = jsonwebtoken_1.default.verify(token, 'delix_secret');
+            }
         }
         catch (err) {
             return res.status(401).json({ error: 'Invalid or expired token' });
@@ -75,10 +82,17 @@ const getProfile = async (req, res) => {
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
         }
-        const token = authHeader.split(' ')[1];
+        const rawToken = (authHeader.split(' ')[1] || '').trim();
+        const token = rawToken.replace(/^["']|["']$/g, '');
         let decoded;
         try {
-            decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'delix_secret');
+            const primarySecret = process.env.JWT_SECRET || 'delix_secret';
+            try {
+                decoded = jsonwebtoken_1.default.verify(token, primarySecret);
+            }
+            catch {
+                decoded = jsonwebtoken_1.default.verify(token, 'delix_secret');
+            }
         }
         catch (err) {
             return res.status(401).json({ error: 'Invalid or expired token' });

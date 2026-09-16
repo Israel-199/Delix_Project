@@ -18,7 +18,30 @@ const requestOtp = async (req, res) => {
         if (!phone) {
             return res.status(400).json({ error: 'Phone number is required' });
         }
-        // Generate random 6-digit OTP code always
+        // Fast sync to Database to check if user exists and already completed profile
+        const existingUser = await prisma.user.findUnique({ where: { phone } });
+        if (existingUser && existingUser.firstName && existingUser.lastName) {
+            // User already exists and has a complete profile. Bypass OTP.
+            const jwtSecret = process.env.JWT_SECRET || 'delix_secret';
+            const token = jsonwebtoken_1.default.sign({ phone, role: existingUser.role }, jwtSecret, { expiresIn: '30d' });
+            const fullNameParts = [existingUser.firstName, existingUser.middleName, existingUser.lastName].filter(Boolean);
+            const fullName = fullNameParts.length > 0 ? fullNameParts.join(' ') : 'Delix User';
+            return res.status(200).json({
+                success: true,
+                message: 'User already verified, logging in directly',
+                isProfileComplete: true,
+                token,
+                user: {
+                    phone: existingUser.phone,
+                    name: fullName,
+                    role: existingUser.role,
+                    firstName: existingUser.firstName,
+                    middleName: existingUser.middleName,
+                    lastName: existingUser.lastName,
+                    isProfileComplete: true
+                }
+            });
+        }
         const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
         otpStore[phone] = generatedOtp;
         console.log(`[SMS OTP Service] OTP sent to ${phone}: ${generatedOtp}`);
