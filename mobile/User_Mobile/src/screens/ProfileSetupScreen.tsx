@@ -8,6 +8,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { moderateScale } from '../utils/responsive';
 import { pickImage, uploadImageToCloudinary } from '../services/cloudinaryService';
+import { hasLocationPermission } from '../services/locationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProfileSetup'>;
 
@@ -55,7 +56,8 @@ const ProfileSetupScreen = ({ navigation }: Props) => {
         profilePhoto: cloudinaryUrl,
       });
 
-      navigation.replace('LocationPermission');
+      const granted = await hasLocationPermission();
+      navigation.replace(granted ? 'CustomerHome' : 'LocationPermission');
     } catch (err: any) {
       setError(err.message || 'Failed to update profile. Please try again.');
     } finally {

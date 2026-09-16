@@ -41,7 +41,8 @@
         {
           "locationWhenInUsePermission": "Allow Delix to use your location to show your position and route on the map."
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {

@@ -8,6 +8,7 @@ import { textStyles, typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { ApiError } from '../services/apiClient';
 import { useAuthStore } from '../store/authStore';
+import { hasLocationPermission } from '../services/locationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -36,7 +37,8 @@ const LoginScreen = ({ navigation }: Props) => {
       const res = await sendOtp(fullPhone);
       
       if (res?.bypassedAuth) {
-        navigation.replace('CustomerHome');
+        const granted = await hasLocationPermission();
+        navigation.replace(granted ? 'CustomerHome' : 'LocationPermission');
         return;
       }
       

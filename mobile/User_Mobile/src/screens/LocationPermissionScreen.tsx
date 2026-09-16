@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import { DelixButton, ScreenContainer } from '../components';
 import { colors, spacing } from '../design-system';
 import { fontFamilies, typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/types';
 import { moderateScale } from '../utils/responsive';
+import { hasLocationPermission } from '../services/locationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LocationPermission'>;
 
@@ -16,16 +18,34 @@ const LocationPermissionScreen = ({ navigation }: Props) => {
 
   const goHome = () => navigation.replace('CustomerHome');
 
+  useEffect(() => {
+    (async () => {
+      const granted = await hasLocationPermission();
+      if (granted) {
+        goHome();
+      }
+    })();
+  }, []);
+
   const handleEnable = async () => {
     setRequesting(true);
     setError(null);
 
     try {
-      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      let servicesEnabled = await Location.hasServicesEnabledAsync();
       if (!servicesEnabled) {
-        setError('Turn on location services in your device settings.');
-        setRequesting(false);
-        return;
+        try {
+          await Location.enableNetworkProviderAsync();
+          servicesEnabled = await Location.hasServicesEnabledAsync();
+        } catch {
+          // fall through if prompt is dismissed or fails
+        }
+        
+        if (!servicesEnabled) {
+          setError('Turn on location services in your device settings.');
+          setRequesting(false);
+          return;
+        }
       }
 
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -45,7 +65,9 @@ const LocationPermissionScreen = ({ navigation }: Props) => {
   return (
     <ScreenContainer contentStyle={styles.content}>
       <View style={styles.hero}>
-        <Text style={styles.icon}>📍</Text>
+        <View style={styles.iconBadge}>
+          <Ionicons name="location" size={moderateScale(48)} color={colors.primary} />
+        </View>
         <Text style={styles.title}>Enable your location</Text>
         <Text style={styles.body}>
           Delix uses your GPS to place pickup on the map, show nearby drivers, and draw the route to
@@ -85,9 +107,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  icon: {
-    fontSize: moderateScale(48),
-    marginBottom: spacing.md,
+  iconBadge: {
+    width: moderateScale(90),
+    height: moderateScale(90),
+    borderRadius: moderateScale(45),
+    backgroundColor: colors.primaryTint,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
   },
   title: {
     ...typography.h2,

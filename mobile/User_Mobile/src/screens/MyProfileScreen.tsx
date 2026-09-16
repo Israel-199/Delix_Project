@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore';
 import { useBookingStore } from '../store/bookingStore';
 import { moderateScale } from '../utils/responsive';
 import { pickImage, uploadImageToCloudinary } from '../services/cloudinaryService';
+import { Ionicons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MyProfile'>;
 
@@ -168,7 +169,8 @@ const MyProfileScreen = ({ navigation }: Props) => {
       />
 
       <Pressable style={styles.logoutButton} onPress={() => setLogoutModalVisible(true)}>
-        <Text style={styles.logoutText}>🚪 Logout</Text>
+        <Ionicons name="person-outline" size={moderateScale(20)} color={colors.error} style={styles.logoutIcon} />
+        <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
 
       {/* Confirmation Modal */}
@@ -323,6 +325,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   logoutButton: {
+    flexDirection: 'row',
     paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -330,6 +333,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.errorLight || '#FEE2E2',
     borderWidth: 1,
     borderColor: colors.error,
+  },
+  logoutIcon: {
+    marginRight: spacing.xs,
   },
   logoutText: {
     fontFamily: fontFamilies.bold,

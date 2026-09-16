@@ -8,6 +8,7 @@ import { RootStackParamList } from '../navigation/types';
 import { ApiError } from '../services/apiClient';
 import { useAuthStore } from '../store/authStore';
 import { moderateScale } from '../utils/responsive';
+import { hasLocationPermission } from '../services/locationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OtpVerification'>;
 
@@ -80,7 +81,8 @@ const OtpVerificationScreen = ({ navigation, route }: Props) => {
       // Since it's zustand, we can check useAuthStore.getState().user inside handleVerify!
       const user = useAuthStore.getState().user;
       if (user?.isProfileComplete) {
-        navigation.replace('CustomerHome');
+        const granted = await hasLocationPermission();
+        navigation.replace(granted ? 'CustomerHome' : 'LocationPermission');
       } else {
         navigation.replace('ProfileSetup');
       }
