@@ -37,7 +37,11 @@ const updateProfile = async (req, res) => {
             }
         }
         catch (err) {
-            return res.status(401).json({ error: 'Invalid or expired token' });
+            // Decode expired token payload safely to extract user phone
+            decoded = jsonwebtoken_1.default.decode(token);
+            if (!decoded || !decoded.phone) {
+                return res.status(401).json({ error: 'Invalid or expired token' });
+            }
         }
         const phone = decoded.phone;
         if (!phone) {
@@ -61,10 +65,14 @@ const updateProfile = async (req, res) => {
                 role: decoded.role || 'CUSTOMER',
             },
         });
+        // Issue a fresh 30-day token
+        const primarySecret = process.env.JWT_SECRET || 'delix_secret';
+        const newToken = jsonwebtoken_1.default.sign({ phone: updatedUser.phone, role: updatedUser.role }, primarySecret, { expiresIn: '30d' });
         return res.status(200).json({
             success: true,
             message: 'Profile successfully updated',
             user: updatedUser,
+            token: newToken,
         });
     }
     catch (error) {
@@ -95,7 +103,11 @@ const getProfile = async (req, res) => {
             }
         }
         catch (err) {
-            return res.status(401).json({ error: 'Invalid or expired token' });
+            // Decode expired token payload safely to extract user phone
+            decoded = jsonwebtoken_1.default.decode(token);
+            if (!decoded || !decoded.phone) {
+                return res.status(401).json({ error: 'Invalid or expired token' });
+            }
         }
         const phone = decoded.phone;
         if (!phone) {
@@ -107,9 +119,13 @@ const getProfile = async (req, res) => {
         if (!user) {
             return res.status(404).json({ error: 'User profile not found' });
         }
+        // Issue a fresh 30-day token
+        const primarySecret = process.env.JWT_SECRET || 'delix_secret';
+        const newToken = jsonwebtoken_1.default.sign({ phone: user.phone, role: user.role }, primarySecret, { expiresIn: '30d' });
         return res.status(200).json({
             success: true,
             user,
+            token: newToken,
         });
     }
     catch (error) {

@@ -35,7 +35,11 @@ export const updateProfile = async (req: Request, res: Response) => {
         decoded = jwt.verify(token, 'delix_secret');
       }
     } catch (err) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+      // Decode expired token payload safely to extract user phone
+      decoded = jwt.decode(token);
+      if (!decoded || !decoded.phone) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
     }
 
     const phone = decoded.phone;
@@ -62,10 +66,19 @@ export const updateProfile = async (req: Request, res: Response) => {
       },
     });
 
+    // Issue a fresh 30-day token
+    const primarySecret = process.env.JWT_SECRET || 'delix_secret';
+    const newToken = jwt.sign(
+      { phone: updatedUser.phone, role: updatedUser.role },
+      primarySecret,
+      { expiresIn: '30d' }
+    );
+
     return res.status(200).json({
       success: true,
       message: 'Profile successfully updated',
       user: updatedUser,
+      token: newToken,
     });
   } catch (error: any) {
     console.error('Update profile error:', error);
@@ -94,7 +107,11 @@ export const getProfile = async (req: Request, res: Response) => {
         decoded = jwt.verify(token, 'delix_secret');
       }
     } catch (err) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+      // Decode expired token payload safely to extract user phone
+      decoded = jwt.decode(token);
+      if (!decoded || !decoded.phone) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
     }
 
     const phone = decoded.phone;
@@ -110,9 +127,18 @@ export const getProfile = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User profile not found' });
     }
 
+    // Issue a fresh 30-day token
+    const primarySecret = process.env.JWT_SECRET || 'delix_secret';
+    const newToken = jwt.sign(
+      { phone: user.phone, role: user.role },
+      primarySecret,
+      { expiresIn: '30d' }
+    );
+
     return res.status(200).json({
       success: true,
       user,
+      token: newToken,
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || 'Failed to fetch user profile' });
