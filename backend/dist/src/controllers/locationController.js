@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getNearbyRecommendations = exports.saveRecentLocation = exports.getRecentLocations = exports.searchLocations = void 0;
+exports.calculateRoute = exports.getNearbyRecommendations = exports.saveRecentLocation = exports.getRecentLocations = exports.searchLocations = void 0;
 const prisma_1 = require("../lib/prisma");
 const userResolver_1 = require("../utils/userResolver");
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
@@ -209,3 +209,77 @@ const getNearbyRecommendations = async (req, res) => {
     }
 };
 exports.getNearbyRecommendations = getNearbyRecommendations;
+const OSRM_ROUTE_URL = process.env.ROUTING_PROVIDER_URL || 'https://router.project-osrm.org/route/v1/driving';
+const routeCache = new Map();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
+const calculateRoute = async (req, res) => {
+    try {
+        const { from, to } = req.body;
+        if (!from?.latitude || !from?.longitude || !to?.latitude || !to?.longitude) {
+            return res.status(400).json({ error: 'Valid from and to coordinates required' });
+        }
+        const fromLat = Number(from.latitude);
+        const fromLng = Number(from.longitude);
+        const toLat = Number(to.latitude);
+        const toLng = Number(to.longitude);
+        const cacheKey = `${fromLng.toFixed(4)},${fromLat.toFixed(4)};${toLng.toFixed(4)},${toLat.toFixed(4)}`;
+        const cached = routeCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+            return res.status(200).json({ success: true, ...cached.data });
+        }
+        const url = `${OSRM_ROUTE_URL}/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson&alternatives=true&steps=false`;
+        const response = await fetch(url, {
+            headers: { 'User-Agent': 'DelixBackend/1.0' },
+        });
+        if (response.ok) {
+            const data = (await response.json());
+            if (data.code === 'Ok' && data.routes?.length) {
+                const sorted = [...data.routes].sort((a, b) => a.duration - b.duration)[0];
+                const rawCoords = sorted.geometry?.coordinates || [];
+                const coordinates = rawCoords.map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
+                const distanceKm = Math.round((sorted.distance / 1000) * 10) / 10;
+                const durationSeconds = Math.round(sorted.duration);
+                const minutes = Math.max(1, Math.round(durationSeconds / 60));
+                const durationLabel = `${minutes} min`;
+                const arrivalDate = new Date(Date.now() + durationSeconds * 1000);
+                const arrivalTime = arrivalDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                const arrivalLabel = `Arrive ${arrivalTime}`;
+                const payload = {
+                    coordinates,
+                    distanceKm,
+                    durationSeconds,
+                    durationLabel,
+                    arrivalTime,
+                    arrivalLabel,
+                    followsRoads: true,
+                };
+                routeCache.set(cacheKey, { timestamp: Date.now(), data: payload });
+                return res.status(200).json({ success: true, ...payload });
+            }
+        }
+        // Fallback straight-line estimation if OSRM is unreachable
+        const latDiff = toLat - fromLat;
+        const lngDiff = toLng - fromLng;
+        const distanceKm = Math.round(Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111 * 10) / 10;
+        const durationSeconds = Math.max(60, Math.round((distanceKm / 25) * 3600));
+        const minutes = Math.max(1, Math.round(durationSeconds / 60));
+        const durationLabel = `${minutes} min`;
+        const arrivalDate = new Date(Date.now() + durationSeconds * 1000);
+        const arrivalTime = arrivalDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        return res.status(200).json({
+            success: true,
+            coordinates: [{ latitude: fromLat, longitude: fromLng }, { latitude: toLat, longitude: toLng }],
+            distanceKm,
+            durationSeconds,
+            durationLabel,
+            arrivalTime,
+            arrivalLabel: `Arrive ${arrivalTime}`,
+            followsRoads: false,
+        });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Route calculation failed';
+        res.status(500).json({ error: message });
+    }
+};
+exports.calculateRoute = calculateRoute;

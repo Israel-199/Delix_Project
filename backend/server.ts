@@ -64,7 +64,7 @@ const resolveDriverRecord = async (driverRef: string) => {
           { user: { phone: driverRef } },
         ],
       },
-      include: { user: { select: { phone: true } } },
+      include: { user: { select: { phone: true, profilePhotoUrl: true } } },
     });
   } catch {
     return null;
@@ -168,6 +168,8 @@ io.on('connection', (socket) => {
       driverId: string;
       driverName?: string;
       driverPhone?: string;
+      driverPhoto?: string;
+      driverAvatar?: string;
       plateNumber?: string;
       vehicleType?: string;
     }) => {
@@ -207,12 +209,16 @@ io.on('connection', (socket) => {
         // Non-blocking
       }
 
+      const photoUrl = payload.driverPhoto || payload.driverAvatar || driverRecord?.photoUrl || driverRecord?.user?.profilePhotoUrl || undefined;
+
       const statusPayload = {
         orderId: payload.orderId,
         status: 'DRIVER_ACCEPTED',
         driverId: canonicalId,
         driverName: payload.driverName,
         driverPhone: payload.driverPhone ?? driverRecord?.user.phone,
+        driverPhoto: photoUrl,
+        driverAvatar: photoUrl,
         plateNumber: payload.plateNumber,
         vehicleType: payload.vehicleType,
       };

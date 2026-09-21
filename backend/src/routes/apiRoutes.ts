@@ -12,6 +12,7 @@ import {
   getRecentLocations,
   saveRecentLocation,
   getNearbyRecommendations,
+  calculateRoute,
 } from '../controllers/locationController';
 import { getNearbyDrivers } from '../controllers/nearbyDriversController';
 import {
@@ -69,6 +70,7 @@ router.get('/locations/search', searchLocations);
 router.get('/locations/recent', getRecentLocations);
 router.post('/locations/recent', saveRecentLocation);
 router.get('/locations/nearby', getNearbyRecommendations);
+router.post('/locations/route', calculateRoute);
 
 // Admin endpoints
 router.get('/admin/stats', getAdminStats);

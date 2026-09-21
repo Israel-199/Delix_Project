@@ -156,16 +156,24 @@ export const offerToNextDriver = async (io: SocketIOServer, orderId: string) => 
   state.currentDriverId = next.driverId;
   markDriverUnavailable(next.driverId);
 
+  const photoUrl =
+    (state.orderData.customerPhoto as string) ||
+    (state.orderData.customerAvatar as string) ||
+    (state.orderData.customerProfilePhoto as string);
+
   const alertPayload = {
     ...state.orderData,
     orderId: state.orderId,
     vehicleRequested: state.vehicleType,
     dispatchTargetDriverId: next.driverId,
     distanceKm: next.distanceKm,
+    customerPhoto: photoUrl,
+    customerAvatar: photoUrl,
     offerExpiresInSec: OFFER_TIMEOUT_MS / 1000,
   };
 
   io.to(driverRoom(next.driverId)).emit('incoming_delivery_alert', alertPayload);
+  io.to(driverRoom(next.driverId)).emit('dispatch_incoming_order', alertPayload);
 
   void notifyDriver(
     next.driverId,
@@ -214,9 +222,30 @@ export const startOrderDispatch = async (io: SocketIOServer, orderData: Dispatch
     activeDispatches.delete(orderId);
   }
 
+  let customerPhoto = (orderData.customerPhoto || orderData.customerAvatar || orderData.customerProfilePhoto) as string | undefined;
+
+  if (!customerPhoto && orderData.customerId) {
+    try {
+      const customerUser = await prisma.user.findFirst({
+        where: { OR: [{ id: String(orderData.customerId) }, { phone: String(orderData.customerPhone || orderData.customerId) }] },
+        select: { profilePhotoUrl: true },
+      });
+      if (customerUser?.profilePhotoUrl) {
+        customerPhoto = customerUser.profilePhotoUrl;
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+
   const state: DispatchState = {
     orderId,
-    orderData: { ...orderData, orderId },
+    orderData: {
+      ...orderData,
+      orderId,
+      customerPhoto,
+      customerAvatar: customerPhoto,
+    },
     pickupLat,
     pickupLng,
     vehicleType,

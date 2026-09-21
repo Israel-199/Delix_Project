@@ -51,6 +51,7 @@ router.get('/locations/search', locationController_1.searchLocations);
 router.get('/locations/recent', locationController_1.getRecentLocations);
 router.post('/locations/recent', locationController_1.saveRecentLocation);
 router.get('/locations/nearby', locationController_1.getNearbyRecommendations);
+router.post('/locations/route', locationController_1.calculateRoute);
 // Admin endpoints
 router.get('/admin/stats', adminController_1.getAdminStats);
 router.get('/admin/orders', adminController_1.getAdminOrders);

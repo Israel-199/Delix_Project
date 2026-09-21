@@ -97,10 +97,10 @@ export const getOrderById = async (req: Request, res: Response) => {
         include: {
           driver: {
             include: {
-              user: { select: { phone: true, firstName: true, lastName: true } },
+              user: { select: { phone: true, firstName: true, lastName: true, profilePhotoUrl: true } },
             },
           },
-          customer: { select: { phone: true, firstName: true, lastName: true } },
+          customer: { select: { phone: true, firstName: true, middleName: true, lastName: true, profilePhotoUrl: true } },
         },
       });
 
@@ -113,6 +113,14 @@ export const getOrderById = async (req: Request, res: Response) => {
           'Driver'
         : undefined;
 
+      const customerName = order.customer
+        ? [order.customer.firstName, order.customer.middleName, order.customer.lastName].filter(Boolean).join(' ') ||
+          'Customer'
+        : undefined;
+
+      const driverPhoto = order.driver?.photoUrl || order.driver?.user.profilePhotoUrl || undefined;
+      const customerPhoto = order.customer?.profilePhotoUrl || undefined;
+
       return res.status(200).json({
         success: true,
         order: {
@@ -120,7 +128,13 @@ export const getOrderById = async (req: Request, res: Response) => {
           driverId: order.driverId ?? undefined,
           driverName,
           driverPhone: order.driver?.user.phone,
+          driverPhoto,
+          driverAvatar: driverPhoto,
           plateNumber: order.driver?.plateNumber,
+          customerPhone: order.customer.phone,
+          customerName,
+          customerPhoto,
+          customerAvatar: customerPhoto,
           paymentMethod: 'Cash',
         },
       });
@@ -170,6 +184,7 @@ export const createOrder = async (req: Request, res: Response) => {
       unloadingAssistance,
       cargoDescription,
       paymentMethod,
+      customerPhoto,
     } = req.body;
 
     const waitingHours = Number(req.body.waitingHours ?? 0);
@@ -178,10 +193,19 @@ export const createOrder = async (req: Request, res: Response) => {
     const cargo = CARGO_MAP[String(cargoCategory ?? 'OTHER').toUpperCase()] ?? 'OTHER';
     const vehicle = VEHICLE_MAP[String(vehicleRequested ?? 'PICKUP_TRUCK').toUpperCase()] ?? 'PICKUP_TRUCK';
 
-    const pickupLatNum = Number(pickupLat ?? 9.0205);
-    const pickupLngNum = Number(pickupLng ?? 38.7469);
-    const destLatNum = Number(destinationLat ?? pickupLatNum);
-    const destLngNum = Number(destinationLng ?? pickupLngNum);
+    if (
+      pickupLat == null ||
+      pickupLng == null ||
+      !Number.isFinite(Number(pickupLat)) ||
+      !Number.isFinite(Number(pickupLng))
+    ) {
+      return res.status(400).json({ error: 'Valid pickup latitude and longitude coordinates are required' });
+    }
+
+    const pickupLatNum = Number(pickupLat);
+    const pickupLngNum = Number(pickupLng);
+    const destLatNum = destinationLat != null && Number.isFinite(Number(destinationLat)) ? Number(destinationLat) : pickupLatNum;
+    const destLngNum = destinationLng != null && Number.isFinite(Number(destinationLng)) ? Number(destinationLng) : pickupLngNum;
     const distanceNum = Number(distanceKm ?? 0);
 
     try {
@@ -207,7 +231,7 @@ export const createOrder = async (req: Request, res: Response) => {
           status: 'SEARCHING_DRIVER',
         },
         include: {
-          customer: { select: { phone: true, firstName: true, middleName: true, lastName: true } },
+          customer: { select: { phone: true, firstName: true, middleName: true, lastName: true, profilePhotoUrl: true } },
         },
       });
 
@@ -215,6 +239,8 @@ export const createOrder = async (req: Request, res: Response) => {
         [order.customer.firstName, order.customer.middleName, order.customer.lastName]
           .filter(Boolean)
           .join(' ') || 'Customer';
+
+      const photoUrl = customerPhoto || order.customer.profilePhotoUrl || undefined;
 
       return res.status(201).json({
         success: true,
@@ -224,6 +250,8 @@ export const createOrder = async (req: Request, res: Response) => {
           paymentMethod: paymentMethod ?? 'Cash',
           customerPhone: order.customer.phone,
           customerName,
+          customerPhoto: photoUrl,
+          customerAvatar: photoUrl,
         },
       });
     } catch (dbError) {
